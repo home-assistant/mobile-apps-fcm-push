@@ -11,49 +11,97 @@ const MAX_NOTIFICATIONS_PER_DAY = 150;
 exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
   console.log('Received payload', req.body);
   var today = getToday();
-  var token = req.body.token;
+  var token = req.body.push_token;
   var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
 
-  var currentCount = 0;
+  var payload = {
+    notification: {
+      body: req.body.message,
+    },
+    token: token,
+  };
+
+  if(req.body.title) {
+    payload.notification.title = req.body.title;
+  }
+
+  if(req.body.data) {
+    if(req.body.data.android) {
+      payload.android = req.body.data.android;
+    }
+    if(req.body.data.apns) {
+      payload.apns = req.body.data.apns;
+    }
+    if(req.body.data.data) {
+      payload.data = req.body.data.data;
+    }
+    if(req.body.data.webpush) {
+      payload.webpush = req.body.data.webpush;
+    }
+  }
+
+  console.log('Notification payload', JSON.stringify(payload));
+
   var docExists = false;
+  var docData = {
+    deliveredCount: 0,
+    errorCount: 0,
+    totalCount: 0,
+  };
 
   try {
     let currentDoc = await ref.get();
     docExists = currentDoc.exists;
     if(currentDoc.exists) {
-      currentCount = currentDoc.data().count;
+      docData = currentDoc.data();
     }
   } catch(err) {
     console.error('Error getting document!', err);
-    return res.status(500).send(err);
+    return handleError(res, 'getDoc', err);
   }
 
-  if(currentCount > MAX_NOTIFICATIONS_PER_DAY) {
+  if(docData.deliveredCount > MAX_NOTIFICATIONS_PER_DAY) {
     return res.status(429).send({
       errorType: 'RateLimited',
       message: 'The given target has reached the maximum number of notifications allowed per day. Please try again later.',
       target: token,
+      rateLimits: getRateLimitsObject(docData),
     });
   }
 
+  docData.totalCount = docData.totalCount + 1;
+
   var messageId;
   try {
-    messageId = await admin.messaging().send(req.body);
+    messageId = await admin.messaging().send(payload);
+    docData.deliveredCount = docData.deliveredCount + 1;
   } catch(err) {
-    console.log('Error sending message:', err);
-    return res.status(500).send(err);
+    docData.errorCount = docData.errorCount + 1;
+    await setRateLimitDoc(ref, docExists, docData, res);
+    return handleError(res, 'sendNotification', err);
   }
 
   console.log('Successfully sent message:', messageId);
 
-  var newCount = currentCount + 1;
+  await setRateLimitDoc(ref, docExists, docData, res);
+
+  return res.status(201).send({
+    messageId: messageId,
+    sentPayload: payload,
+    target: token,
+    rateLimits: getRateLimitsObject(docData),
+  });
+
+});
+
+async function setRateLimitDoc(ref, docExists, docData, res) {
   try {
     if(docExists) {
       console.log('Updating existing doc!');
-      await ref.update({count: newCount})
+      await ref.update(docData);
     } else {
       console.log('Creating new doc!');
-      await ref.set({count: newCount});
+      await ref.set(docData);
     }
   } catch(err) {
     if(docExists) {
@@ -61,16 +109,20 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     } else {
       console.error('Error creating document!', err);
     }
-    return res.status(500).send(err);
+    return handleError(res, 'setDocument', err);
   }
+  return true;
+}
 
-  return res.status(200).send({
-    messageId: messageId,
-    sentPayload: req.body,
-    target: token
+function handleError(res, step, incomingError) {
+  if (!incomingError) return null;
+  console.error('InternalError during', step, incomingError);
+  return res.status(500).send({
+    errorType: 'InternalError',
+    errorStep: step,
+    message: incomingError.message,
   });
-
-});
+}
 
 function getToday() {
   var today = new Date();
@@ -78,4 +130,16 @@ function getToday() {
   var mm = String(today.getMonth() + 1).padStart(2, '0');
   var yyyy = today.getFullYear();
   return yyyy + mm + dd;
+}
+
+function getRateLimitsObject(doc) {
+  var d = new Date();
+  return {
+    successful: (doc.deliveredCount || 0),
+    errors: (doc.errorCount || 0),
+    total: (doc.totalCount || 0),
+    maximum: MAX_NOTIFICATIONS_PER_DAY,
+    remaining: (MAX_NOTIFICATIONS_PER_DAY - doc.deliveredCount),
+    resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate()+1)
+  };
 }
