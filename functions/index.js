@@ -9,7 +9,7 @@ var db = admin.firestore();
 const MAX_NOTIFICATIONS_PER_DAY = 150;
 
 exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
-  console.log('Received payload', req.body);
+  console.log('Received payload', JSON.stringify(req.body));
   var today = getToday();
   var token = req.body.push_token;
   var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
@@ -37,6 +37,71 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     }
     if(req.body.data.webpush) {
       payload.webpush = req.body.data.webpush;
+    }
+  }
+
+  if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
+    // Enable old SNS iOS specific push setup.
+    payload.apns = {payload: {aps: {}}};
+    if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
+      payload.apns.payload.aps.contentAvailable = true;
+      payload.data = {
+        'homeassistant': JSON.stringify({ 'command': 'request_location_update' }),
+      };
+    } else if (req.body.message === 'clear_badge') {
+      payload.apns.payload.aps.badge = 0;
+    } else {
+      if(req.body.data) {
+        if (req.body.data.subtitle) {
+          payload.apns.payload.aps.alert = {
+            subtitle: req.body.data.subtitle
+          }
+        }
+
+        if (req.body.data.push) {
+          for (var attrname in req.body.data.push) {
+            payload.apns.payload.aps[attrname] = req.body.data.push[attrname];
+          }
+        }
+
+        if(req.body.data.sound) {
+          payload.apns.payload.aps.sound = {
+            name: req.body.data.sound
+          }
+        } else {
+          payload.apns.payload.aps.sound = {
+            name: 'default'
+          }
+        }
+
+        payload.data = {};
+
+        if (req.body.data.entity_id) {
+          payload.data.entity_id = req.body.data.entity_id;
+        }
+
+        if (req.body.data.action_data) {
+          payload.data.homeassistant = JSON.stringify(req.body.data.action_data);
+        }
+
+        if (req.body.data.attachment) {
+          payload.data.attachment = JSON.stringify(req.body.data.attachment);
+        }
+
+        if (req.body.data.url) {
+          payload.data.url = req.body.data.url;
+        }
+
+        if (req.body.data.shortcut) {
+          payload.data.shortcut = JSON.stringify(req.body.data.shortcut);
+        }
+
+        if (req.body.data.presentation_options) {
+          payload.data.presentation_options = JSON.stringify(req.body.data.presentation_options);
+        }
+      }
+
+      payload.apns.payload.aps.mutableContent = true;
     }
   }
 
