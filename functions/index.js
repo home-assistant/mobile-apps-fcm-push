@@ -18,11 +18,21 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     notification: {
       body: req.body.message,
     },
+    apns: {
+      payload: {
+        aps: {
+          alert: {
+            body: req.body.message
+          }
+        }
+      }
+    },
     token: token,
   };
 
   if(req.body.title) {
     payload.notification.title = req.body.title;
+    payload.apns.payload.aps.alert.title = req.body.title;
   }
 
   if(req.body.data) {
@@ -42,20 +52,15 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
   if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
     // Enable old SNS iOS specific push setup.
-    payload.apns = {payload: {aps: {}}};
     if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
       payload.apns.payload.aps.contentAvailable = true;
-      payload.data = {
-        'homeassistant': JSON.stringify({ 'command': 'request_location_update' }),
-      };
+      payload.apns.payload.homeassistant = { 'command': 'request_location_update' };
     } else if (req.body.message === 'clear_badge') {
       payload.apns.payload.aps.badge = 0;
     } else {
       if(req.body.data) {
         if (req.body.data.subtitle) {
-          payload.apns.payload.aps.alert = {
-            subtitle: req.body.data.subtitle
-          }
+          payload.apns.payload.aps.alert.subtitle = req.body.data.subtitle;
         }
 
         if (req.body.data.push) {
@@ -65,39 +70,33 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
         }
 
         if(req.body.data.sound) {
-          payload.apns.payload.aps.sound = {
-            name: req.body.data.sound
-          }
+          payload.apns.payload.aps.sound = req.body.data.sound;
         } else {
-          payload.apns.payload.aps.sound = {
-            name: 'default'
-          }
+          payload.apns.payload.aps.sound = 'default';
         }
 
-        payload.data = {};
-
         if (req.body.data.entity_id) {
-          payload.data.entity_id = req.body.data.entity_id;
+          payload.apns.payload.entity_id = req.body.data.entity_id;
         }
 
         if (req.body.data.action_data) {
-          payload.data.homeassistant = JSON.stringify(req.body.data.action_data);
+          payload.apns.payload.homeassistant = req.body.data.action_data;
         }
 
         if (req.body.data.attachment) {
-          payload.data.attachment = JSON.stringify(req.body.data.attachment);
+          payload.apns.payload.attachment = req.body.data.attachment;
         }
 
         if (req.body.data.url) {
-          payload.data.url = req.body.data.url;
+          payload.apns.payload.url = req.body.data.url;
         }
 
         if (req.body.data.shortcut) {
-          payload.data.shortcut = JSON.stringify(req.body.data.shortcut);
+          payload.apns.payload.shortcut = req.body.data.shortcut;
         }
 
         if (req.body.data.presentation_options) {
-          payload.data.presentation_options = JSON.stringify(req.body.data.presentation_options);
+          payload.apns.payload.presentation_options = req.body.data.presentation_options;
         }
       }
 
