@@ -109,6 +109,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
   var docExists = false;
   var docData = {
+    attemptsCount: 0,
     deliveredCount: 0,
     errorCount: 0,
     totalCount: 0,
@@ -125,7 +126,18 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     return handleError(res, 'getDoc', err);
   }
 
+  docData.attemptsCount = docData.attemptsCount + 1;
+
+  if(docData.deliveredCount === MAX_NOTIFICATIONS_PER_DAY) {
+    try {
+      await sendRateLimitedNotification(token);
+    } catch(err) {
+      console.error('Error sending rate limited notification!', err);
+    }
+  }
+
   if(docData.deliveredCount > MAX_NOTIFICATIONS_PER_DAY) {
+    await setRateLimitDoc(ref, docExists, docData, res);
     return res.status(429).send({
       errorType: 'RateLimited',
       message: 'The given target has reached the maximum number of notifications allowed per day. Please try again later.',
@@ -199,12 +211,52 @@ function getToday() {
 
 function getRateLimitsObject(doc) {
   var d = new Date();
+  var remainingCount = (MAX_NOTIFICATIONS_PER_DAY - doc.deliveredCount);
+  if(remainingCount === -1) remainingCount = 0;
   return {
+    attempts: (doc.attemptsCount || 0),
     successful: (doc.deliveredCount || 0),
     errors: (doc.errorCount || 0),
     total: (doc.totalCount || 0),
     maximum: MAX_NOTIFICATIONS_PER_DAY,
-    remaining: (MAX_NOTIFICATIONS_PER_DAY - doc.deliveredCount),
+    remaining: remainingCount,
     resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate()+1)
   };
+}
+
+async function sendRateLimitedNotification(token) {
+  var d = new Date();
+  var strMax = String(MAX_NOTIFICATIONS_PER_DAY);
+  var payload = {
+    token: token,
+    notification: {
+      title: 'Notifications Rate Limited',
+      body: `You have now sent more than ${MAX_NOTIFICATIONS_PER_DAY} notifications today. You will not receive new notifications until midnight UTC.`
+    },
+    data: {
+      rateLimited: 'true',
+      maxNotificationsPerDay: strMax,
+      resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate()+1).toISOString(),
+    },
+    android: {
+      notification: {
+        body_loc_args: [strMax],
+        body_loc_key: "rate_limit_notification.body",
+        title_loc_key: "rate_limit_notification.title",
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          alert: {
+            'loc-args': [strMax],
+            'loc-key': "rate_limit_notification.body",
+            'title-loc-key': "rate_limit_notification.title",
+          }
+        }
+      }
+    }
+  };
+  console.log('Sending rate limit payload', JSON.stringify(payload));
+  return await admin.messaging().send(payload);
 }
