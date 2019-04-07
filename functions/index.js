@@ -12,6 +12,9 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
   console.log('Received payload', JSON.stringify(req.body));
   var today = getToday();
   var token = req.body.push_token;
+  if(token.indexOf(':') === -1) { // A check for old SNS tokens
+    return res.status(403).send({'errorMessage': 'That is not a valid FCM token'});
+  }
   var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
 
   var payload = {
@@ -53,6 +56,8 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
   if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
     // Enable old SNS iOS specific push setup.
     if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
+      payload.notification = {};
+      payload.apns.payload.aps = {};
       payload.apns.payload.aps.contentAvailable = true;
       payload.apns.payload.homeassistant = { 'command': 'request_location_update' };
     } else if (req.body.message === 'clear_badge') {
@@ -71,8 +76,8 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
         if(req.body.data.sound) {
           payload.apns.payload.aps.sound = req.body.data.sound;
-        } else {
-          payload.apns.payload.aps.sound = 'default';
+        } else if(req.body.data.push && req.body.data.push.sound) {
+          payload.apns.payload.aps.sound = req.body.data.push.sound;
         }
 
         if (req.body.data.entity_id) {
@@ -103,6 +108,8 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
       payload.apns.payload.aps.mutableContent = true;
     }
   }
+
+  if(payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
 
   console.log('Notification payload', JSON.stringify(payload));
 
