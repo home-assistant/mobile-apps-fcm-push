@@ -112,6 +112,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     }
   }
 
+  if(payload.apns.payload.aps.sound && payload.apns.payload.aps.sound.volume) payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
   if(payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
 
   console.log('Notification payload', JSON.stringify(payload));
