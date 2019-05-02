@@ -45,6 +45,9 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     if(req.body.data.apns) {
       payload.apns = req.body.data.apns;
     }
+    if(req.body.data.apns_headers) {
+      payload.apns.headers = req.body.data.apns_headers;
+    }
     if(req.body.data.data) {
       payload.data = req.body.data.data;
     }
