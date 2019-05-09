@@ -121,7 +121,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
   if(payload.apns.payload.aps.sound) {
     if(payload.apns.payload.aps.sound.volume) payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
-    if(payload.apns.payload.aps.sound.critical) updateRateLimits = false;
+    if(payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) updateRateLimits = false;
   }
   if(payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
 
