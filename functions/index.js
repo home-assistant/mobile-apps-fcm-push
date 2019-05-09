@@ -180,7 +180,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
   console.log('Successfully sent message:', messageId);
 
-  if updateRateLimits {
+  if (updateRateLimits) {
     await setRateLimitDoc(ref, docExists, docData, res);
   } else {
     console.log('Not updating rate limits because notification is critical or command');
