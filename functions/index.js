@@ -12,6 +12,9 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
   console.log('Received payload', JSON.stringify(req.body));
   var today = getToday();
   var token = req.body.push_token;
+  if(!token) {
+    return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
+  }
   if(token.indexOf(':') === -1) { // A check for old SNS tokens
     return res.status(403).send({'errorMessage': 'That is not a valid FCM token'});
   }
