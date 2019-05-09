@@ -56,6 +56,8 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     }
   }
 
+  var updateRateLimits = true;
+
   if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
     // Enable old SNS iOS specific push setup.
     if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
@@ -63,8 +65,10 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
       payload.apns.payload.aps = {};
       payload.apns.payload.aps.contentAvailable = true;
       payload.apns.payload.homeassistant = { 'command': 'request_location_update' };
+      updateRateLimits = false;
     } else if (req.body.message === 'clear_badge') {
       payload.apns.payload.aps.badge = 0;
+      updateRateLimits = false;
     } else {
       if(req.body.data) {
         if (req.body.data.subtitle) {
@@ -112,7 +116,10 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     }
   }
 
-  if(payload.apns.payload.aps.sound && payload.apns.payload.aps.sound.volume) payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
+  if(payload.apns.payload.aps.sound) {
+    if(payload.apns.payload.aps.sound.volume) payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
+    if(payload.apns.payload.aps.sound.critical) updateRateLimits = false;
+  }
   if(payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
 
   console.log('Notification payload', JSON.stringify(payload));
@@ -138,7 +145,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
   docData.attemptsCount = docData.attemptsCount + 1;
 
-  if(docData.deliveredCount === MAX_NOTIFICATIONS_PER_DAY) {
+  if(updateRateLimits && docData.deliveredCount === MAX_NOTIFICATIONS_PER_DAY) {
     try {
       await sendRateLimitedNotification(token);
     } catch(err) {
@@ -146,7 +153,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     }
   }
 
-  if(docData.deliveredCount > MAX_NOTIFICATIONS_PER_DAY) {
+  if(updateRateLimits && docData.deliveredCount > MAX_NOTIFICATIONS_PER_DAY) {
     await setRateLimitDoc(ref, docExists, docData, res);
     return res.status(429).send({
       errorType: 'RateLimited',
@@ -170,7 +177,11 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
   console.log('Successfully sent message:', messageId);
 
-  await setRateLimitDoc(ref, docExists, docData, res);
+  if updateRateLimits {
+    await setRateLimitDoc(ref, docExists, docData, res);
+  } else {
+    console.log('Not updating rate limits because notification is critical or command');
+  }
 
   return res.status(201).send({
     messageId: messageId,
