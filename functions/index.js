@@ -70,7 +70,11 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
       payload.apns.payload.homeassistant = { 'command': 'request_location_update' };
       updateRateLimits = false;
     } else if (req.body.message === 'clear_badge') {
+      payload.notification = {};
+      payload.apns.payload.aps = {};
+      payload.apns.payload.aps.contentAvailable = true;
       payload.apns.payload.aps.badge = 0;
+      payload.apns.payload.homeassistant = { 'command': 'clear_badge' };
       updateRateLimits = false;
     } else {
       if(req.body.data) {
