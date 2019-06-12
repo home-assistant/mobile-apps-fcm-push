@@ -25,6 +25,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
       body: req.body.message,
     },
     apns: {
+      headers: {},
       payload: {
         aps: {
           alert: {
@@ -128,7 +129,11 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     if(payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) updateRateLimits = false;
   }
   if(payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
-
+  if(payload.apns.payload.aps.contentAvailable) {
+    payload.apns.headers['apns-push-type'] = 'background';
+  } else {
+    payload.apns.headers['apns-push-type'] = 'alert';
+  }
   console.log('Notification payload', JSON.stringify(payload));
 
   var docExists = false;
