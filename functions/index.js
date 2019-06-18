@@ -30,7 +30,8 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
         aps: {
           alert: {
             body: req.body.message
-          }
+          },
+          sound: 'default'
         }
       }
     },
@@ -125,8 +126,16 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
   }
 
   if(payload.apns.payload.aps.sound) {
-    if(payload.apns.payload.aps.sound.volume) payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
-    if(payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) updateRateLimits = false;
+    if((typeof payload.apns.payload.aps.sound === "string") && (payload.apns.payload.aps.sound.toLowerCase() === "none")) {
+      delete payload.apns.payload.aps.sound;
+    } else if(typeof payload.apns.payload.aps.sound === "object") {
+      if(payload.apns.payload.aps.sound.volume) {
+        payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
+      }
+      if(payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) {
+        updateRateLimits = false;
+      }
+    }
   }
   if(payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
   if(payload.apns.payload.aps.contentAvailable) {
