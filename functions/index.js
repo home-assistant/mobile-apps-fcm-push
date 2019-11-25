@@ -166,7 +166,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     }
   } catch(err) {
     console.error('Error getting document!', err);
-    return handleError(res, 'getDoc', err);
+    return handleError(res, payload, 'getDoc', err);
   }
 
   docData.attemptsCount = docData.attemptsCount + 1;
@@ -198,7 +198,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
   } catch(err) {
     docData.errorCount = docData.errorCount + 1;
     await setRateLimitDoc(ref, docExists, docData, res);
-    return handleError(res, 'sendNotification', err);
+    return handleError(res, payload, 'sendNotification', err);
   }
 
   console.log('Successfully sent message:', messageId);
@@ -233,14 +233,18 @@ async function setRateLimitDoc(ref, docExists, docData, res) {
     } else {
       console.error('Error creating document!', err);
     }
-    return handleError(res, 'setDocument', err);
+    return handleError(res, null, 'setDocument', err);
   }
   return true;
 }
 
-function handleError(res, step, incomingError) {
+function handleError(res, payload, step, incomingError) {
   if (!incomingError) return null;
-  console.error('InternalError during', step, incomingError);
+  if(payload) {
+    console.error('InternalError during', step, 'with payload', JSON.stringify(payload), incomingError);
+  } else {
+    console.error('InternalError during', step, incomingError);
+  }
   return res.status(500).send({
     errorType: 'InternalError',
     errorStep: step,
