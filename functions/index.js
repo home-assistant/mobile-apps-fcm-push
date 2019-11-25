@@ -78,6 +78,11 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
       payload.apns.payload.aps.badge = 0;
       payload.apns.payload.homeassistant = { 'command': 'clear_badge' };
       updateRateLimits = false;
+    } else if (req.body.message === 'delete_alert') {
+      payload.notification = {};
+      payload.apns.payload.aps = {};
+      payload.apns.payload.aps.contentAvailable = true;
+      updateRateLimits = false;
     } else {
       if(req.body.data) {
         if (req.body.data.subtitle) {
