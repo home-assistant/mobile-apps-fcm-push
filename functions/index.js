@@ -78,11 +78,6 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
       payload.apns.payload.aps.badge = 0;
       payload.apns.payload.homeassistant = { 'command': 'clear_badge' };
       updateRateLimits = false;
-    } else if (req.body.message === 'delete_alert') {
-      payload.notification = {};
-      payload.apns.payload.aps = {};
-      payload.apns.payload.aps.contentAvailable = true;
-      updateRateLimits = false;
     } else {
       if(req.body.data) {
         if (req.body.data.subtitle) {
@@ -127,6 +122,15 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
       }
 
       payload.apns.payload.aps.mutableContent = true;
+
+      if (req.body.message === 'delete_alert') {
+        updateRateLimits = false;
+        delete payload.notification.body;
+        delete payload.apns.payload.aps.alert.title;
+        delete payload.apns.payload.aps.alert.subtitle;
+        delete payload.apns.payload.aps.alert.body;
+        delete payload.apns.payload.aps.sound;
+      }
     }
   }
 
