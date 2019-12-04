@@ -141,6 +141,9 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
       if(payload.apns.payload.aps.sound.volume) {
         payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
       }
+      if(payload.apns.payload.aps.sound.critical) {
+        payload.apns.payload.aps.sound.critical = parseInt(payload.apns.payload.aps.sound.critical);
+      }
       if(payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) {
         updateRateLimits = false;
       }
