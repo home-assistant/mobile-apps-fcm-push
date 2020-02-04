@@ -1,6 +1,7 @@
 'use strict';
 
 const ios = require('./ios')
+const android = require('./android')
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
@@ -29,7 +30,9 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     updateRateLimits = response[0]
     payload = response[1]
   } else if (req.body.registration_info.app_id.indexOf('io.homeassistant.companion.android') > -1) {
-    // TODO: Android Handling
+    var response = android.createPayload(req)
+    updateRateLimits = response[0]
+    payload = response[1]
   } else {
     console.error('Issue deternmining android vs ios')
     return res.status(400).send({
