@@ -24,15 +24,18 @@ module.exports = {
       }
     }
 
-    // Always put message and title in data so that the application can handle creating
-    // the notifications.  This allows us to safely create actionable notifications.
+    // Always put message, title, and image in data so that the application can handle creating
+    // the notifications.  This allows us to safely create actionable/imaged notifications.
     if(req.body.message) {
       payload.data.message = req.body.message
     }
     if(req.body.title) {
       payload.data.title = req.body.title
     }
-
+    if(payload.android.image) {
+      payload.data.image = payload.android.image
+      delete payload.android.image
+    }
 
     return [updateRateLimits, payload];
   }
