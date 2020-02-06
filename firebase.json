@@ -18,6 +18,10 @@
         "function": "sendPushNotification"
       },
       {
+        "source": "/api/sendPush/android/v1",
+        "function": "androidV1"
+      },
+      {
         "source": "**",
         "destination": "/index.html",
         "type": 301

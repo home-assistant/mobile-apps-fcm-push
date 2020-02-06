@@ -1,6 +1,6 @@
 'use strict';
 
-const ios = require('./ios')
+const legacy = require('./legacy')
 const android = require('./android')
 
 const functions = require('firebase-functions');
@@ -13,35 +13,25 @@ const debug = isDebug()
 const MAX_NOTIFICATIONS_PER_DAY = 150;
 
 exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
+  return handleRequest(req, res, legacy.createPayload);
+});
+
+exports.androidV1 = functions.https.onRequest(async (req, res) => {
+  return handleRequest(req, res, android.createPayload);
+});
+
+async function handleRequest(req, res, payloadHandler) {
   if(debug) console.log('Received payload', JSON.stringify(req.body));
   var today = getToday();
   var token = req.body.push_token;
   if(!token) {
     return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
   }
-  if(token.indexOf(':') === -1) { // A check for old SNS tokens
-    return res.status(403).send({'errorMessage': 'That is not a valid FCM token'});
-  }
-  var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
 
-  var updateRateLimits = true
-  var payload = null
-  if(req.body.registration_info.app_id === 'io.robbie.HomeAssistant') {
-    let response = ios.createPayload(req)
-    updateRateLimits = response.updateRateLimits
-    payload = response.payload
-  } else if (req.body.registration_info.app_id === 'io.homeassistant.companion.android') {
-    let response = android.createPayload(req)
-    updateRateLimits = response.updateRateLimits
-    payload = response.payload
-  } else {
-    console.error('Issue deternmining android vs ios for payload ', JSON.stringify(req.body))
-    return res.status(400).send({
-      errorType: 'UnknownApplication',
-      errorStep: 'ApplicationCheck'
-    });
-  }
-
+  let response = payloadHandler(req)
+  var updateRateLimits = response.updateRateLimits
+  var payload = response.payload
+  
   payload['token'] = token;
 
   var docExists = false;
@@ -112,7 +102,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     rateLimits: getRateLimitsObject(docData),
   });
 
-});
+}
 
 function isDebug() {
   let conf = functions.config();
