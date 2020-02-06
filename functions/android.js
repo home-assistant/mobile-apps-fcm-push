@@ -1,28 +1,27 @@
 module.exports = {
   createPayload: function createPayload(req) {
-    var payload = {
+    let payload = {
       android: {},
       data: {}
     };
-    var updateRateLimits = true;
+    let updateRateLimits = true;
 
-    if(req.body.data) {
-      if(req.body.data.android) {
-        payload.android = req.body.data.android;
-      }
-      if(req.body.data.data) {
-        payload.data = req.body.data.data;
-      }
-      // Handle the web actions by changing them into a format the app can handle
-      // https://www.home-assistant.io/integrations/html5/#actions
-      if(req.body.data.actions) {
-        for (let i = 0; i < req.body.data.actions.length; i++) {
-          const action = req.body.data.actions[i];
-          payload.data["action_"+i+"_key"] = action.action
-          payload.data["action_"+i+"_title"] = action.title
-        }
+    for (const key of ['android', 'data']) {
+      if(req.body.data[key]){
+        payload[key] = req.body.data[key]
       }
     }
+
+    // Handle the web actions by changing them into a format the app can handle
+    // https://www.home-assistant.io/integrations/html5/#actions
+    if(req.body.data && req.body.data.actions) {
+      for (let i = 0; i < req.body.data.actions.length; i++) {
+        const action = req.body.data.actions.actions[i];
+        payload.data["action_"+i+"_key"] = action.action
+        payload.data["action_"+i+"_title"] = action.title
+      }
+    }
+    
 
     // Always put message, title, and image in data so that the application can handle creating
     // the notifications.  This allows us to safely create actionable/imaged notifications.
@@ -37,6 +36,6 @@ module.exports = {
       delete payload.android.image
     }
 
-    return [updateRateLimits, payload];
+    return { updateRateLimits: updateRateLimits, payload: payload };
   }
 }

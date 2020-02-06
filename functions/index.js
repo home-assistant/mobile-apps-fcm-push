@@ -9,10 +9,11 @@ admin.initializeApp();
 
 var db = admin.firestore();
 
+const debug = isDebug()
 const MAX_NOTIFICATIONS_PER_DAY = 150;
 
 exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
-  console.log('Received payload', JSON.stringify(req.body));
+  if(debug) console.log('Received payload', JSON.stringify(req.body));
   var today = getToday();
   var token = req.body.push_token;
   if(!token) {
@@ -25,25 +26,23 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
   var updateRateLimits = true
   var payload = null
-  if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
-    var response = ios.createPayload(req)
-    updateRateLimits = response[0]
-    payload = response[1]
-  } else if (req.body.registration_info.app_id.indexOf('io.homeassistant.companion.android') > -1) {
-    var response = android.createPayload(req)
-    updateRateLimits = response[0]
-    payload = response[1]
+  if(req.body.registration_info.app_id === 'io.robbie.HomeAssistant') {
+    let response = ios.createPayload(req)
+    updateRateLimits = response.updateRateLimits
+    payload = response.payload
+  } else if (req.body.registration_info.app_id === 'io.homeassistant.companion.android') {
+    let response = android.createPayload(req)
+    updateRateLimits = response.updateRateLimits
+    payload = response.payload
   } else {
-    console.error('Issue deternmining android vs ios')
+    console.error('Issue deternmining android vs ios for payload ', JSON.stringify(req.body))
     return res.status(400).send({
-      errorType: 'MissingRegistration',
-      errorStep: 'RegistrationCheck'
+      errorType: 'UnknownApplication',
+      errorStep: 'ApplicationCheck'
     });
   }
 
   payload['token'] = token;
-
-  console.log('Notification payload', JSON.stringify(payload));
 
   var docExists = false;
   var docData = {
@@ -86,7 +85,7 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
   docData.totalCount = docData.totalCount + 1;
 
-  console.log('Sending payload', JSON.stringify(payload));
+  if(debug) console.log('Sending payload', JSON.stringify(payload));
 
   var messageId;
   try {
@@ -98,12 +97,12 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     return handleError(res, payload, 'sendNotification', err);
   }
 
-  console.log('Successfully sent message:', messageId);
+  if(debug) console.log('Successfully sent message:', messageId);
 
   if (updateRateLimits) {
     await setRateLimitDoc(ref, docExists, docData, res);
   } else {
-    console.log('Not updating rate limits because notification is critical or command');
+    if(debug) console.log('Not updating rate limits because notification is critical or command');
   }
 
   return res.status(201).send({
@@ -115,13 +114,21 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
 });
 
+function isDebug() {
+  let conf = functions.config();
+  if(conf.debug){
+    return conf.debug.local;
+  }
+  return false;
+}
+
 async function setRateLimitDoc(ref, docExists, docData, res) {
   try {
     if(docExists) {
-      console.log('Updating existing doc!');
+      if(debug) console.log('Updating existing doc!');
       await ref.update(docData);
     } else {
-      console.log('Creating new doc!');
+      if(debug) console.log('Creating new doc!');
       await ref.set(docData);
     }
   } catch(err) {
@@ -205,6 +212,6 @@ async function sendRateLimitedNotification(token) {
       }
     }
   };
-  console.log('Sending rate limit payload', JSON.stringify(payload));
+  if(debug) console.log('Sending rate limit payload', JSON.stringify(payload));
   return await admin.messaging().send(payload);
 }

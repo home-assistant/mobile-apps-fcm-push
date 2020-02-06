@@ -1,6 +1,6 @@
 module.exports = {
   createPayload: function createPayload(req) {
-    var payload = {
+    let payload = {
       notification: {
         body: req.body.message,
       },
@@ -23,23 +23,18 @@ module.exports = {
     }
 
     if(req.body.data) {
-      if(req.body.data.android) {
-        payload.android = req.body.data.android;
+      for (const key of ['android', 'apns', 'data', 'webpush']) {
+        if (req.body.data[key]) {
+          payload[key] = req.body.data[key]
+        }
       }
-      if(req.body.data.apns) {
-        payload.apns = req.body.data.apns;
-      }
+  
+      // Special handling because mapping apns_headers -> apns.headers
       if(req.body.data.apns_headers) {
         payload.apns.headers = req.body.data.apns_headers;
-      }
-      if(req.body.data.data) {
-        payload.data = req.body.data.data;
-      }
-      if(req.body.data.webpush) {
-        payload.webpush = req.body.data.webpush;
-      }
+      }  
     }
-
+    
     var updateRateLimits = true;
 
     if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
@@ -135,6 +130,6 @@ module.exports = {
       payload.apns.headers['apns-push-type'] = 'alert';
     }
 
-    return [updateRateLimits, payload];
+    return { updateRateLimits: updateRateLimits, payload: payload };
   }
 }
