@@ -1,161 +1,38 @@
 'use strict';
 
+const legacy = require('./legacy')
+const android = require('./android')
+
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
 var db = admin.firestore();
 
+const debug = isDebug()
 const MAX_NOTIFICATIONS_PER_DAY = 150;
 
 exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
-  console.log('Received payload', JSON.stringify(req.body));
+  return handleRequest(req, res, legacy.createPayload);
+});
+
+exports.androidV1 = functions.https.onRequest(async (req, res) => {
+  return handleRequest(req, res, android.createPayload);
+});
+
+async function handleRequest(req, res, payloadHandler) {
+  if(debug) console.log('Received payload', JSON.stringify(req.body));
   var today = getToday();
   var token = req.body.push_token;
   if(!token) {
     return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
   }
-  if(token.indexOf(':') === -1) { // A check for old SNS tokens
-    return res.status(403).send({'errorMessage': 'That is not a valid FCM token'});
-  }
-  var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
 
-  var payload = {
-    notification: {
-      body: req.body.message,
-    },
-    apns: {
-      headers: {},
-      payload: {
-        aps: {
-          alert: {
-            body: req.body.message
-          },
-          sound: 'default'
-        }
-      }
-    },
-    token: token,
-  };
-
-  if(req.body.title) {
-    payload.notification.title = req.body.title;
-    payload.apns.payload.aps.alert.title = req.body.title;
-  }
-
-  if(req.body.data) {
-    if(req.body.data.android) {
-      payload.android = req.body.data.android;
-    }
-    if(req.body.data.apns) {
-      payload.apns = req.body.data.apns;
-    }
-    if(req.body.data.apns_headers) {
-      payload.apns.headers = req.body.data.apns_headers;
-    }
-    if(req.body.data.data) {
-      payload.data = req.body.data.data;
-    }
-    if(req.body.data.webpush) {
-      payload.webpush = req.body.data.webpush;
-    }
-  }
-
-  var updateRateLimits = true;
-
-  if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
-    // Enable old SNS iOS specific push setup.
-    if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
-      payload.notification = {};
-      payload.apns.payload.aps = {};
-      payload.apns.payload.aps.contentAvailable = true;
-      payload.apns.payload.homeassistant = { 'command': 'request_location_update' };
-      updateRateLimits = false;
-    } else if (req.body.message === 'clear_badge') {
-      payload.notification = {};
-      payload.apns.payload.aps = {};
-      payload.apns.payload.aps.contentAvailable = true;
-      payload.apns.payload.aps.badge = 0;
-      payload.apns.payload.homeassistant = { 'command': 'clear_badge' };
-      updateRateLimits = false;
-    } else {
-      if(req.body.data) {
-        if (req.body.data.subtitle) {
-          payload.apns.payload.aps.alert.subtitle = req.body.data.subtitle;
-        }
-
-        if (req.body.data.push) {
-          for (var attrname in req.body.data.push) {
-            payload.apns.payload.aps[attrname] = req.body.data.push[attrname];
-          }
-        }
-
-        if(req.body.data.sound) {
-          payload.apns.payload.aps.sound = req.body.data.sound;
-        } else if(req.body.data.push && req.body.data.push.sound) {
-          payload.apns.payload.aps.sound = req.body.data.push.sound;
-        }
-
-        if (req.body.data.entity_id) {
-          payload.apns.payload.entity_id = req.body.data.entity_id;
-        }
-
-        if (req.body.data.action_data) {
-          payload.apns.payload.homeassistant = req.body.data.action_data;
-        }
-
-        if (req.body.data.attachment) {
-          payload.apns.payload.attachment = req.body.data.attachment;
-        }
-
-        if (req.body.data.url) {
-          payload.apns.payload.url = req.body.data.url;
-        }
-
-        if (req.body.data.shortcut) {
-          payload.apns.payload.shortcut = req.body.data.shortcut;
-        }
-
-        if (req.body.data.presentation_options) {
-          payload.apns.payload.presentation_options = req.body.data.presentation_options;
-        }
-      }
-
-      payload.apns.payload.aps.mutableContent = true;
-
-      if (req.body.message === 'delete_alert') {
-        updateRateLimits = false;
-        delete payload.notification.body;
-        delete payload.apns.payload.aps.alert.title;
-        delete payload.apns.payload.aps.alert.subtitle;
-        delete payload.apns.payload.aps.alert.body;
-        delete payload.apns.payload.aps.sound;
-      }
-    }
-  }
-
-  if(payload.apns.payload.aps.sound) {
-    if((typeof payload.apns.payload.aps.sound === "string") && (payload.apns.payload.aps.sound.toLowerCase() === "none")) {
-      delete payload.apns.payload.aps.sound;
-    } else if(typeof payload.apns.payload.aps.sound === "object") {
-      if(payload.apns.payload.aps.sound.volume) {
-        payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
-      }
-      if(payload.apns.payload.aps.sound.critical) {
-        payload.apns.payload.aps.sound.critical = parseInt(payload.apns.payload.aps.sound.critical);
-      }
-      if(payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) {
-        updateRateLimits = false;
-      }
-    }
-  }
-  if(payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
-  if(payload.apns.payload.aps.contentAvailable) {
-    payload.apns.headers['apns-push-type'] = 'background';
-  } else {
-    payload.apns.headers['apns-push-type'] = 'alert';
-  }
-  console.log('Notification payload', JSON.stringify(payload));
+  let response = payloadHandler(req)
+  var updateRateLimits = response.updateRateLimits
+  var payload = response.payload
+  
+  payload['token'] = token;
 
   var docExists = false;
   var docData = {
@@ -198,6 +75,8 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
   docData.totalCount = docData.totalCount + 1;
 
+  if(debug) console.log('Sending payload', JSON.stringify(payload));
+
   var messageId;
   try {
     messageId = await admin.messaging().send(payload);
@@ -208,12 +87,12 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     return handleError(res, payload, 'sendNotification', err);
   }
 
-  console.log('Successfully sent message:', messageId);
+  if(debug) console.log('Successfully sent message:', messageId);
 
   if (updateRateLimits) {
     await setRateLimitDoc(ref, docExists, docData, res);
   } else {
-    console.log('Not updating rate limits because notification is critical or command');
+    if(debug) console.log('Not updating rate limits because notification is critical or command');
   }
 
   return res.status(201).send({
@@ -223,15 +102,23 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
     rateLimits: getRateLimitsObject(docData),
   });
 
-});
+}
+
+function isDebug() {
+  let conf = functions.config();
+  if(conf.debug){
+    return conf.debug.local;
+  }
+  return false;
+}
 
 async function setRateLimitDoc(ref, docExists, docData, res) {
   try {
     if(docExists) {
-      console.log('Updating existing doc!');
+      if(debug) console.log('Updating existing doc!');
       await ref.update(docData);
     } else {
-      console.log('Creating new doc!');
+      if(debug) console.log('Creating new doc!');
       await ref.set(docData);
     }
   } catch(err) {
@@ -315,6 +202,6 @@ async function sendRateLimitedNotification(token) {
       }
     }
   };
-  console.log('Sending rate limit payload', JSON.stringify(payload));
+  if(debug) console.log('Sending rate limit payload', JSON.stringify(payload));
   return await admin.messaging().send(payload);
 }
