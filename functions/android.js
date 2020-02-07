@@ -1,10 +1,7 @@
 module.exports = {
   createPayload: function createPayload(req) {
     let payload = {
-      android: {
-        ttl: 0,
-        priority: "HIGH"
-      },
+      android: {},
       data: {}
     };
     let updateRateLimits = true;
@@ -21,8 +18,8 @@ module.exports = {
       if(req.body.data.actions) {
         for (let i = 0; i < req.body.data.actions.length; i++) {
           const action = req.body.data.actions[i];
-          payload.data["action_"+i+"_key"] = action.action
-          payload.data["action_"+i+"_title"] = action.title
+          payload.data["action_"+(i+1)+"_key"] = action.action
+          payload.data["action_"+(i+1)+"_title"] = action.title
         }
       }
     }
