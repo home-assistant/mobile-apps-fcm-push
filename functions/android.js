@@ -20,7 +20,7 @@ module.exports = {
       // https://www.home-assistant.io/integrations/html5/#actions
       if(req.body.data.actions) {
         for (let i = 0; i < req.body.data.actions.length; i++) {
-          const action = req.body.data.actions.actions[i];
+          const action = req.body.data.actions[i];
           payload.data["action_"+i+"_key"] = action.action
           payload.data["action_"+i+"_title"] = action.title
         }
