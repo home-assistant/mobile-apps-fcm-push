@@ -27,12 +27,17 @@ async function handleRequest(req, res, payloadHandler) {
   if(!token) {
     return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
   }
+  if(token.indexOf(':') === -1) { // A check for old SNS tokens
+    return res.status(403).send({'errorMessage': 'That is not a valid FCM token'});
+  }
 
   let response = payloadHandler(req)
   var updateRateLimits = response.updateRateLimits
   var payload = response.payload
   
   payload['token'] = token;
+
+  var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
 
   var docExists = false;
   var docData = {
