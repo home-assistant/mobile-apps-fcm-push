@@ -1,7 +1,10 @@
 module.exports = {
   createPayload: function createPayload(req) {
     let payload = {
-      android: {},
+      android: {
+        ttl: "0",
+        priority: "HIGH"
+      },
       data: {}
     };
     let updateRateLimits = true;
@@ -12,7 +15,7 @@ module.exports = {
           payload[key] = req.body.data[key]
         }
       }
-  
+
       // Handle the web actions by changing them into a format the app can handle
       // https://www.home-assistant.io/integrations/html5/#actions
       if(req.body.data.actions) {
@@ -21,9 +24,9 @@ module.exports = {
           payload.data["action_"+i+"_key"] = action.action
           payload.data["action_"+i+"_title"] = action.title
         }
-      }  
+      }
     }
-    
+
     // Always put message, title, and image in data so that the application can handle creating
     // the notifications.  This allows us to safely create actionable/imaged notifications.
     if(req.body.message) {
