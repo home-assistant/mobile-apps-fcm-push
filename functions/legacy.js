@@ -4,6 +4,10 @@ module.exports = {
       notification: {
         body: req.body.message,
       },
+      android: {
+        ttl: 0,
+        priority: "HIGH"
+      },
       apns: {
         headers: {},
         payload: {
@@ -28,13 +32,13 @@ module.exports = {
           payload[key] = req.body.data[key]
         }
       }
-  
+
       // Special handling because mapping apns_headers -> apns.headers
       if(req.body.data.apns_headers) {
         payload.apns.headers = req.body.data.apns_headers;
-      }  
+      }
     }
-    
+
     var updateRateLimits = true;
 
     if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
