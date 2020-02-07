@@ -2,7 +2,7 @@ module.exports = {
   createPayload: function createPayload(req) {
     let payload = {
       android: {
-        ttl: "0",
+        ttl: 0,
         priority: "HIGH"
       },
       data: {}
