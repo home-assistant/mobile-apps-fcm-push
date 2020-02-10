@@ -8,18 +8,20 @@ module.exports = {
 
     if(req.body.data){
 
-      // URL to an image
-      if(req.body.data.image){
-        payload.data.image = req.body.data.image
-      }
-
       // Handle the web actions by changing them into a format the app can handle
       // https://www.home-assistant.io/integrations/html5/#actions
       if(req.body.data.actions) {
         for (let i = 0; i < req.body.data.actions.length; i++) {
           const action = req.body.data.actions[i];
-          payload.data["action_"+(i+1)+"_key"] = action.action
-          payload.data["action_"+(i+1)+"_title"] = action.title
+          if(action.action){
+            payload.data["action_"+(i+1)+"_key"] = action.action
+          }
+          if(action.title) {
+            payload.data["action_"+(i+1)+"_title"] = action.title
+          }
+          if(action.uri){
+            payload.data["action_"+(i+1)+"_uri"] = action.uri
+          }
         }
       }
 
@@ -32,6 +34,14 @@ module.exports = {
       // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidConfig.html#optional-priority
       if(req.body.data.priority){
         payload.android.priority = req.body.data.priority
+      }
+
+      // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidNotification.html#optional-tag
+      // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidNotification.html#optional-sticky
+      for (const key of ['image', 'tag', 'sticky', 'color', 'clickAction']) {
+        if(req.body.data[key]){
+          payload.data[key] = req.body.data[key]
+        }
       }
     }
 
