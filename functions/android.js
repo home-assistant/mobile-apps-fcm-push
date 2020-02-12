@@ -30,7 +30,7 @@ module.exports = {
       if(req.body.data.ttl){
         payload.android.ttl = req.body.data.ttl
       }
-      
+
       // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidConfig.html#optional-priority
       if(req.body.data.priority){
         payload.android.priority = req.body.data.priority
@@ -40,7 +40,7 @@ module.exports = {
       // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidNotification.html#optional-sticky
       for (const key of ['image', 'tag', 'sticky', 'color', 'clickAction']) {
         if(req.body.data[key]){
-          payload.data[key] = req.body.data[key]
+          payload.data[key] = String(req.body.data[key])
         }
       }
     }
