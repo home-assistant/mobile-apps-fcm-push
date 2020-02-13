@@ -34,7 +34,7 @@ async function handleRequest(req, res, payloadHandler) {
   let response = payloadHandler(req)
   var updateRateLimits = response.updateRateLimits
   var payload = response.payload
-  
+
   payload['token'] = token;
 
   var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
@@ -205,6 +205,9 @@ async function sendRateLimitedNotification(token) {
           }
         }
       }
+    },
+    fcm_options: {
+      analytics_label: "rateLimitNotification"
     }
   };
   if(debug) console.log('Sending rate limit payload', JSON.stringify(payload));

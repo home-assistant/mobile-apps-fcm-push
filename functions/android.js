@@ -2,7 +2,10 @@ module.exports = {
   createPayload: function createPayload(req) {
     let payload = {
       android: {},
-      data: {}
+      data: {},
+      fcm_options: {
+        analytics_label: "androidV1Notification"
+      }
     };
     let updateRateLimits = true;
 

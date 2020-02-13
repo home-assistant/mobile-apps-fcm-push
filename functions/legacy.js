@@ -18,6 +18,9 @@ module.exports = {
             sound: 'default'
           }
         }
+      },
+      fcm_options: {
+        analytics_label: "legacyNotification"
       }
     };
 
