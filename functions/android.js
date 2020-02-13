@@ -39,9 +39,14 @@ module.exports = {
         payload.android.priority = req.body.data.priority
       }
 
-      // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidNotification.html#optional-tag
-      // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidNotification.html#optional-sticky
-      for (const key of ['image', 'tag', 'sticky', 'color', 'clickAction']) {
+      // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidNotification.html
+      for (const key of [
+        'icon', 'color', 'sound', 'tag', 'clickAction',
+        'bodyLocKey', 'bodyLocArgs', 'titleLocKey', 'titleLocArgs', 'channelId',
+        'ticker', 'sticky', 'eventTime', 'localOnly', 'notificationPriority',
+        'defaultSound', 'defaultVibrateTimings', 'defaultLightSettings', 'vibrateTimings',
+        'visibility', 'notificationCount', 'lightSettings', 'image'
+      ]) {
         if(req.body.data[key]){
           payload.data[key] = String(req.body.data[key])
         }
