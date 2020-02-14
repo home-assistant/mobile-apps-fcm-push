@@ -2,6 +2,7 @@
 
 const legacy = require('./legacy')
 const android = require('./android')
+const encrypted = require('./encrypted')
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
@@ -18,6 +19,10 @@ exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
 
 exports.androidV1 = functions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, android.createPayload);
+});
+
+exports.encryptedV1 = functions.https.onRequest(async (req, res) => {
+  return handleRequest(req, res, encrypted.createPayload);
 });
 
 async function handleRequest(req, res, payloadHandler) {

@@ -22,6 +22,10 @@
         "function": "androidV1"
       },
       {
+        "source": "/api/sendPush/encrypted/v1",
+        "function": "encryptedV1"
+      },
+      {
         "source": "**",
         "destination": "/index.html",
         "type": 301
