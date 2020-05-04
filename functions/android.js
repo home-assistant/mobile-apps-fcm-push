@@ -42,7 +42,7 @@ module.exports = {
       // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidNotification.html
       for (const key of [
         'icon', 'color', 'sound', 'tag', 'clickAction',
-        'bodyLocKey', 'bodyLocArgs', 'titleLocKey', 'titleLocArgs', 'channelId',
+        'bodyLocKey', 'bodyLocArgs', 'titleLocKey', 'titleLocArgs', 'channel',
         'ticker', 'sticky', 'eventTime', 'localOnly', 'notificationPriority',
         'defaultSound', 'defaultVibrateTimings', 'defaultLightSettings', 'vibrateTimings',
         'visibility', 'notificationCount', 'lightSettings', 'image'
@@ -57,7 +57,7 @@ module.exports = {
     // the notifications.  This allows us to safely create actionable/imaged notifications.
     if(req.body.message) {
       payload.data.message = req.body.message
-      if(req.body.message in ['request_location_update', 'clear_notification']) {
+      if(req.body.message in ['request_location_update', 'clear_notification', 'remove_channel']) {
         updateRateLimits = false
       }
     }
