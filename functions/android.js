@@ -45,8 +45,8 @@ module.exports = {
         'bodyLocKey', 'bodyLocArgs', 'titleLocKey', 'titleLocArgs', 'channel',
         'ticker', 'sticky', 'eventTime', 'localOnly', 'notificationPriority',
         'defaultSound', 'defaultVibrateTimings', 'defaultLightSettings', 'vibrateTimings',
-        'visibility', 'notificationCount', 'lightSettings', 'image', 'ttl', 'priority', 
-		'subject', 'group', 'icon'
+        'visibility', 'notificationCount', 'lightSettings', 'image', 'timeout', 'importance', 
+		'subject', 'group', 'icon', 'ledColor', 'vibrationPattern', 'persistent'
       ]) {
         if(req.body.data[key]){
           payload.data[key] = String(req.body.data[key])
