@@ -22,6 +22,10 @@
         "function": "androidV1"
       },
       {
+        "source": "/api/checkRateLimits",
+        "function": "checkRateLimits"
+      },
+      {
         "source": "**",
         "destination": "/index.html",
         "type": 301

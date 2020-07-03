@@ -20,6 +20,43 @@ exports.androidV1 = functions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, android.createPayload);
 });
 
+exports.checkRateLimits = functions.https.onRequest(async (req, res) => {
+  var token = req.body.push_token;
+  if(!token) {
+    return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
+  }
+  if(token.indexOf(':') === -1) { // A check for old SNS tokens
+    return res.status(403).send({'errorMessage': 'That is not a valid FCM token'});
+  }
+
+  var today = getToday();
+
+  var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
+
+  var docExists = false;
+  var docData = {
+    attemptsCount: 0,
+    deliveredCount: 0,
+    errorCount: 0,
+    totalCount: 0,
+  };
+
+  try {
+    let currentDoc = await ref.get();
+    if(currentDoc.exists) {
+      docData = currentDoc.data();
+    }
+  } catch(err) {
+    console.error('Error getting document!', err);
+    return handleError(res, payload, 'getDoc', err);
+  }
+
+  return res.status(200).send({
+    target: token,
+    rateLimits: getRateLimitsObject(docData),
+  });
+});
+
 async function handleRequest(req, res, payloadHandler) {
   if(debug) console.log('Received payload', JSON.stringify(req.body));
   var today = getToday();
