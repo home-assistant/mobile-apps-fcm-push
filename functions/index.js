@@ -10,7 +10,7 @@ admin.initializeApp();
 var db = admin.firestore();
 
 const debug = isDebug()
-const MAX_NOTIFICATIONS_PER_DAY = 150;
+const MAX_NOTIFICATIONS_PER_DAY = 300;
 
 exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, legacy.createPayload);
