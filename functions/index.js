@@ -1,7 +1,8 @@
 'use strict';
 
-const legacy = require('./legacy')
 const android = require('./android')
+const ios = require('./ios')
+const legacy = require('./legacy')
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
@@ -12,12 +13,16 @@ var db = admin.firestore();
 const debug = isDebug()
 const MAX_NOTIFICATIONS_PER_DAY = 300;
 
-exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
-  return handleRequest(req, res, legacy.createPayload);
-});
-
 exports.androidV1 = functions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, android.createPayload);
+});
+
+exports.iOSV1 = functions.https.onRequest(async (req, res) => {
+  return handleRequest(req, res, ios.createPayload);
+});
+
+exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
+  return handleRequest(req, res, legacy.createPayload);
 });
 
 exports.checkRateLimits = functions.https.onRequest(async (req, res) => {
@@ -26,7 +31,7 @@ exports.checkRateLimits = functions.https.onRequest(async (req, res) => {
     return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
   }
   if(token.indexOf(':') === -1) { // A check for old SNS tokens
-    return res.status(403).send({'errorMessage': 'That is not a valid FCM token'});
+    return res.status(403).send({ 'errorMessage': 'That is not a valid FCM token' });
   }
 
   var today = getToday();

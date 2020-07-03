@@ -22,6 +22,10 @@
         "function": "androidV1"
       },
       {
+        "source": "/api/sendPush/iOS/v1",
+        "function": "iOSV1"
+      },
+      {
         "source": "/api/checkRateLimits",
         "function": "checkRateLimits"
       },
