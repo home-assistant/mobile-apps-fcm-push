@@ -10,8 +10,9 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
+    "@google-cloud/logging": "^8.0.1",
     "firebase-admin": "^8.9.2",
-    "firebase-functions": "^3.3.0"
+    "firebase-functions": "^3.8.0"
   },
   "devDependencies": {
     "eslint": "^5.12.0",
