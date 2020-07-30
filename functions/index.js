@@ -56,8 +56,7 @@ exports.checkRateLimits = functions.https.onRequest(async (req, res) => {
       docData = currentDoc.data();
     }
   } catch(err) {
-    functions.logger.error('Error getting document!', err);
-    return handleError(req, res, payload, 'getDoc', err);
+    return handleError(req, res, payload, 'getRateLimitDoc', err);
   }
 
   return res.status(200).send({
@@ -67,7 +66,7 @@ exports.checkRateLimits = functions.https.onRequest(async (req, res) => {
 });
 
 async function handleRequest(req, res, payloadHandler) {
-  if(debug) functions.logger.info('Received payload', JSON.stringify(req.body));
+  if(debug) functions.logger.info('Handling request', { requestBody: JSON.stringify(req.body) });
   var today = getToday();
   var token = req.body.push_token;
   if(!token) {
@@ -100,8 +99,7 @@ async function handleRequest(req, res, payloadHandler) {
       docData = currentDoc.data();
     }
   } catch(err) {
-    functions.logger.error('Error getting document!', err);
-    return handleError(req, res, payload, 'getDoc', err);
+    return handleError(req, res, payload, 'getRateLimitDoc', err);
   }
 
   docData.attemptsCount = docData.attemptsCount + 1;
@@ -110,7 +108,7 @@ async function handleRequest(req, res, payloadHandler) {
     try {
       await sendRateLimitedNotification(token);
     } catch(err) {
-      functions.logger.error('Error sending rate limited notification!', err);
+      handleError(req, res, payload, 'sendRateLimitNotification', err, false);
     }
   }
 
@@ -126,7 +124,7 @@ async function handleRequest(req, res, payloadHandler) {
 
   docData.totalCount = docData.totalCount + 1;
 
-  if(debug) functions.logger.info('Sending payload', JSON.stringify(payload));
+  if(debug) functions.logger.info('Sending notification', { notification: JSON.stringify(payload) });
 
   var messageId;
   try {
@@ -138,7 +136,7 @@ async function handleRequest(req, res, payloadHandler) {
     return handleError(req, res, payload, 'sendNotification', err);
   }
 
-  if(debug) functions.logger.info('Successfully sent message:', messageId);
+  if(debug) functions.logger.info('Successfully sent notification', { messageId: messageId, notification: JSON.stringify(payload) });
 
   if (updateRateLimits) {
     await setRateLimitDoc(ref, docExists, docData, res);
@@ -166,26 +164,22 @@ function isDebug() {
 async function setRateLimitDoc(ref, docExists, docData, req, res) {
   try {
     if(docExists) {
-      if(debug) functions.logger.info('Updating existing doc!');
+      if(debug) functions.logger.info('Updating existing rate limit doc!');
       await ref.update(docData);
     } else {
-      if(debug) functions.logger.info('Creating new doc!');
+      if(debug) functions.logger.info('Creating new rate limit doc!');
       await ref.set(docData);
     }
   } catch(err) {
-    if(docExists) {
-      functions.logger.error('Error updating document!', err);
-    } else {
-      functions.logger.error('Error creating document!', err);
-    }
-    return handleError(req, res, null, 'setDocument', err);
+    const step = docExists ? 'updateRateLimitDocument' : 'createRateLimitDocument'
+    return handleError(req, res, null, step, err);
   }
   return true;
 }
 
-function handleError(req, res, payload, step, incomingError) {
+function handleError(req, res, payload = {}, step, incomingError, shouldExit = true) {
   if (!incomingError) {
-    incomingError = new Error(`handleError was passed an undefined incomingError during ${step}`)
+    incomingError = new Error(`handleError was passed an undefined incomingError`)
   }
 
   if (!(incomingError instanceof Error)) {
@@ -193,13 +187,9 @@ function handleError(req, res, payload, step, incomingError) {
     incomingError = new Error(incomingError)
   }
 
-  functions.logger.error('InternalError during', step, incomingError);
+  return reportError(incomingError, step, req, payload).then(() => {
+    if(!shouldExit) { return true }
 
-  if(payload) {
-    functions.logger.error('Payload that triggered error:', JSON.stringify(payload));
-  }
-
-  return reportError(incomingError, step, req).then(() => {
     return res.status(500).send({
       errorType: 'InternalError',
       errorStep: step,
@@ -208,22 +198,35 @@ function handleError(req, res, payload, step, incomingError) {
   })
 }
 
-function reportError(err, step, req) {
-  // This is the name of the StackDriver log stream that will receive the log
-  // entry. This name can be any valid log stream name, but must contain "err"
-  // in order for the error to be picked up by StackDriver Error Reporting.
+function reportError(err, step, req, notificationObj) {
   const logName = 'errors-' + step;
   const log = logging.log(logName);
 
   const region = 'us-central1' // process.env.FIREBASE_CONFIG.locationId only has us-central. We need us-central1.
 
+  let labels = {
+    step: step,
+    requestBody: JSON.stringify(req.body),
+    notification: JSON.stringify(notificationObj)
+  }
+
+  if(req.body.registration_info) {
+    labels.appID = req.body.registration_info.app_id
+    labels.appVersion = req.body.registration_info.app_version
+    labels.osVersion = req.body.registration_info.os_version
+  }
+
   // https://cloud.google.com/logging/docs/api/ref_v2beta1/rest/v2beta1/MonitoredResource
   const metadata = {
     resource: {
       type: 'cloud_function',
-      labels: { function_name: process.env.FUNCTION_TARGET, region: region },
-      severity: 'ERROR'
+      labels: {
+        function_name: process.env.FUNCTION_TARGET,
+        region: region
+      }
     },
+    severity: 'ERROR',
+    labels: labels
   };
 
   // https://cloud.google.com/error-reporting/reference/rest/v1beta1/ErrorEvent
@@ -239,14 +242,12 @@ function reportError(err, step, req) {
         method: req.method,
         url: req.originalUrl,
         userAgent: req.get('user-agent'),
-        referrer: '',
         remoteIp: req.ip
       },
       user: req.body.push_token
     },
   };
 
-  // Write the error log entry
   return new Promise((resolve, reject) => {
     log.write(log.entry(metadata, errorEvent), (error) => {
       if (error) {
@@ -256,7 +257,6 @@ function reportError(err, step, req) {
     });
   });
 }
-
 
 function getToday() {
   var today = new Date();
@@ -317,6 +317,6 @@ async function sendRateLimitedNotification(token) {
       analytics_label: "rateLimitNotification"
     }
   };
-  if(debug) functions.logger.info('Sending rate limit payload', JSON.stringify(payload));
+  if(debug) functions.logger.info('Sending rate limit notification', { notification: JSON.stringify(payload) });
   return await admin.messaging().send(payload);
 }
