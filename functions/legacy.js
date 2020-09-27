@@ -1,3 +1,5 @@
+const path = require('path')
+
 module.exports = {
   createPayload: function createPayload(req) {
     let payload = {
@@ -116,8 +118,12 @@ module.exports = {
     }
 
     if(payload.apns.payload.aps.sound) {
-      if((typeof payload.apns.payload.aps.sound === "string") && (payload.apns.payload.aps.sound.toLowerCase() === "none")) {
-        delete payload.apns.payload.aps.sound;
+      if(typeof payload.apns.payload.aps.sound === "string") {
+        if(payload.apns.payload.aps.sound.toLowerCase() === "none") {
+          delete payload.apns.payload.aps.sound;
+        } else if(req.query.extensionless_sound === "true") {
+          payload.apns.payload.aps.sound = path.parse(payload.apns.payload.aps.sound).name
+        }
       } else if(typeof payload.apns.payload.aps.sound === "object") {
         if(payload.apns.payload.aps.sound.volume) {
           payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
