@@ -1,3 +1,5 @@
+const path = require('path')
+
 module.exports = {
   createPayload: function createPayload(req) {
     let payload = {
@@ -75,6 +77,11 @@ module.exports = {
             payload.apns.payload.aps.sound = req.body.data.sound;
           } else if(req.body.data.push && req.body.data.push.sound) {
             payload.apns.payload.aps.sound = req.body.data.push.sound;
+          }
+
+          if((typeof req.body.registration_info.os_version === "string")
+            && (req.body.registration_info.os_version.startsWith('10.15'))) {
+            payload.apns.payload.aps.sound = path.parse(payload.apns.payload.aps.sound).name
           }
 
           if (req.body.data.entity_id) {
