@@ -17,10 +17,6 @@ const logging = new Logging();
 const debug = isDebug()
 const MAX_NOTIFICATIONS_PER_DAY = 300;
 
-// process.env.FIREBASE_CONFIG.locationId only has the project's multi-region location, e.g. us-central or europe-west.
-// We need the complete Google Cloud Function location, e.g. us-central1 or europe-west1.
-// See https://firebase.google.com/docs/projects/locations#location-mr
-// and https://firebase.google.com/docs/functions/locations#selecting-regions_firestore-storage
 const region = functions.config().app && functions.config().app.region || "us-central1"
 const regionalFunctions = functions.region(region)
 
@@ -227,6 +223,9 @@ function reportError(err, step, req, notificationObj) {
       type: 'cloud_function',
       labels: {
         function_name: process.env.FUNCTION_TARGET,
+        // Use region from Cloud Function config as process.env.FIREBASE_CONFIG.locationId only has the project's multi-region location, e.g. us-central or europe-west, and we need a complete Google Cloud location, e.g. us-central1 or europe-west1, to invoke Google Cloud Logging API.
+        // See https://firebase.google.com/docs/projects/locations#location-mr
+        // and https://firebase.google.com/docs/functions/locations#selecting-regions_firestore-storage
         region: region
       }
     },
