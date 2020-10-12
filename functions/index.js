@@ -17,19 +17,22 @@ const logging = new Logging();
 const debug = isDebug()
 const MAX_NOTIFICATIONS_PER_DAY = 300;
 
-exports.androidV1 = functions.https.onRequest(async (req, res) => {
+const region = functions.config().app && functions.config().app.region || "us-central1"
+const regionalFunctions = functions.region(region)
+
+exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, android.createPayload);
 });
 
-exports.iOSV1 = functions.https.onRequest(async (req, res) => {
+exports.iOSV1 = regionalFunctions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, ios.createPayload);
 });
 
-exports.sendPushNotification = functions.https.onRequest(async (req, res) => {
+exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, legacy.createPayload);
 });
 
-exports.checkRateLimits = functions.https.onRequest(async (req, res) => {
+exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => {
   var token = req.body.push_token;
   if(!token) {
     return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
@@ -202,8 +205,6 @@ function reportError(err, step, req, notificationObj) {
   const logName = 'errors-' + step;
   const log = logging.log(logName);
 
-  const region = 'us-central1' // process.env.FIREBASE_CONFIG.locationId only has us-central. We need us-central1.
-
   let labels = {
     step: step,
     requestBody: JSON.stringify(req.body),
@@ -222,6 +223,9 @@ function reportError(err, step, req, notificationObj) {
       type: 'cloud_function',
       labels: {
         function_name: process.env.FUNCTION_TARGET,
+        // Use region from Cloud Function config as process.env.FIREBASE_CONFIG.locationId only has the project's multi-region location, e.g. us-central or europe-west, and we need a complete Google Cloud location, e.g. us-central1 or europe-west1, to invoke Google Cloud Logging API.
+        // See https://firebase.google.com/docs/projects/locations#location-mr
+        // and https://firebase.google.com/docs/functions/locations#selecting-regions_firestore-storage
         region: region
       }
     },
