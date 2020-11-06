@@ -46,7 +46,8 @@ module.exports = {
         'ticker', 'sticky', 'eventTime', 'localOnly', 'notificationPriority',
         'defaultSound', 'defaultVibrateTimings', 'defaultLightSettings', 'vibrateTimings',
         'visibility', 'notificationCount', 'lightSettings', 'image', 'timeout', 'importance', 
-		'subject', 'group', 'icon_url', 'ledColor', 'vibrationPattern', 'persistent'
+		'subject', 'group', 'icon_url', 'ledColor', 'vibrationPattern', 'persistent', 
+		'chronometer', 'when'
       ]) {
         if(req.body.data[key]){
           payload.data[key] = String(req.body.data[key])
