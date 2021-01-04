@@ -81,7 +81,16 @@ module.exports = {
 
           if((typeof req.body.registration_info.os_version === "string")
             && (req.body.registration_info.os_version.startsWith('10.15'))) {
-            payload.apns.payload.aps.sound = path.parse(payload.apns.payload.aps.sound).name
+            switch(typeof payload.apns.payload.aps.sound) {
+              case "string":
+                payload.apns.payload.aps.sound = path.parse(payload.apns.payload.aps.sound).name
+                break;
+              case "object":
+                if(typeof payload.apns.payload.aps.sound.name === "string") {
+                  payload.apns.payload.aps.sound.name = path.parse(payload.apns.payload.aps.sound.name).name
+                }
+                break;
+            }
           }
 
           if (req.body.data.entity_id) {
