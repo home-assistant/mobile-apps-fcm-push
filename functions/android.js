@@ -61,7 +61,8 @@ module.exports = {
       payload.data.message = req.body.message
       if(req.body.message in ['request_location_update', 'clear_notification', 'remove_channel',
 			     'command_dnd', 'command_ringer_mode', 'command_broadcast_intent',
-			     'command_volume_level', 'command_bluetooth', 'command_high_accuracy_mode']) {
+			     'command_volume_level', 'command_bluetooth', 'command_high_accuracy_mode',
+           'command_activity']) {
         updateRateLimits = false
       }
     }
