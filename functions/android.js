@@ -58,11 +58,11 @@ module.exports = {
     // Always put message, title, and image in data so that the application can handle creating
     // the notifications.  This allows us to safely create actionable/imaged notifications.
     if(req.body.message) {
-      payload.data.message = req.body.message
-      if(req.body.message in ['request_location_update', 'clear_notification', 'remove_channel',
-			     'command_dnd', 'command_ringer_mode', 'command_broadcast_intent',
-			     'command_volume_level', 'command_bluetooth', 'command_high_accuracy_mode',
-           'command_activity', 'command_webview']) {
+      payload.data.message = req.body.message;
+      const messages_to_ignore = ['request_location_update', 'clear_notification', 'remove_channel', 'command_dnd', 
+	    'command_ringer_mode', 'command_broadcast_intent','command_volume_level', 
+	    'command_bluetooth', 'command_high_accuracy_mode', 'command_activity', 'command_webview'];
+      if(messages_to_ignore.includes(req.body.message)) {
         updateRateLimits = false
       }
     }
