@@ -60,7 +60,7 @@ module.exports = {
     if(req.body.message) {
       payload.data.message = req.body.message;
       const messages_to_ignore = ['request_location_update', 'clear_notification', 'remove_channel', 'command_dnd', 
-	    'command_ringer_mode', 'command_broadcast_intent','command_volume_level', 
+	    'command_ringer_mode', 'command_broadcast_intent','command_volume_level', 'command_screen_on',
 	    'command_bluetooth', 'command_high_accuracy_mode', 'command_activity', 'command_webview'];
       if(messages_to_ignore.includes(req.body.message)) {
         updateRateLimits = false
