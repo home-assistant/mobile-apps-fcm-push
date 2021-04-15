@@ -49,15 +49,13 @@ module.exports = {
     if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
       // Enable old SNS iOS specific push setup.
       if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
-        // 2021-04-13 setting `notification` to `{}`, `null` or not present causes `messaging/invalid-argument`
-        // payload.notification = {};
+        payload.notification = {};
         payload.apns.payload.aps = {};
         payload.apns.payload.aps.contentAvailable = true;
         payload.apns.payload.homeassistant = { 'command': 'request_location_update' };
         updateRateLimits = false;
       } else if (req.body.message === 'clear_badge') {
-        // 2021-04-13 setting `notification` to `{}`, `null` or not present causes `messaging/invalid-argument`
-        // payload.notification = {};
+        payload.notification = {};
         payload.apns.payload.aps = {};
         payload.apns.payload.aps.contentAvailable = true;
         payload.apns.payload.aps.badge = 0;
