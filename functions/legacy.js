@@ -73,6 +73,13 @@ module.exports = {
             }
           }
 
+          if(req.body.data.actions) {
+            if(!payload.apns.payload.aps.category) {
+              payload.apns.payload.aps.category = 'DYNAMIC';
+            }
+            payload.apns.payload.actions = req.body.data.actions;
+          }
+
           if(req.body.data.sound) {
             payload.apns.payload.aps.sound = req.body.data.sound;
           } else if(req.body.data.push && req.body.data.push.sound) {
