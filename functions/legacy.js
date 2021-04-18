@@ -118,6 +118,10 @@ module.exports = {
           if (req.body.data.presentation_options) {
             payload.apns.payload.presentation_options = req.body.data.presentation_options;
           }
+
+          if (typeof req.body.data.tag === "string") {
+            payload.apns.headers['apns-collapse-id'] = req.body.data.tag;
+          }
         }
 
         payload.apns.payload.aps.mutableContent = true;
