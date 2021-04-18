@@ -63,6 +63,18 @@ module.exports = {
         payload.apns.payload.aps.badge = 0;
         payload.apns.payload.homeassistant = { 'command': 'clear_badge' };
         updateRateLimits = false;
+      } else if (req.body.message === 'clear_notification') {
+        payload.notification = {};
+        payload.apns.payload.aps = {};
+        payload.apns.payload.aps.contentAvailable = true;
+        payload.apns.payload.homeassistant = { 'command': 'clear_notification' };
+
+        if (req.body.data) {
+          payload.apns.payload.homeassistant.tag = req.body.data.tag;
+        }
+
+        payload.apns.payload.homeassistant.collapseId = payload.apns.headers['apns-collapse-id'];
+        updateRateLimits = false;
       } else {
         if(req.body.data) {
           if (req.body.data.subtitle) {
