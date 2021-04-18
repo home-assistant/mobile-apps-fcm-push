@@ -122,6 +122,10 @@ module.exports = {
           if (typeof req.body.data.tag === "string") {
             payload.apns.headers['apns-collapse-id'] = req.body.data.tag;
           }
+
+          if (typeof req.body.data.group === "string") {
+            payload.apns.payload.aps['thread-id'] = req.body.data.group;
+          }
         }
 
         payload.apns.payload.aps.mutableContent = true;
