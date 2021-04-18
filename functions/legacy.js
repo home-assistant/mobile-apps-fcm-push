@@ -63,6 +63,9 @@ module.exports = {
         updateRateLimits = false;
       } else {
         if(req.body.data) {
+          var needsCategory = false;
+          var needsMutableContent = false;
+
           if (req.body.data.subtitle) {
             payload.apns.payload.aps.alert.subtitle = req.body.data.subtitle;
           }
@@ -74,10 +77,8 @@ module.exports = {
           }
 
           if(req.body.data.actions) {
-            if(!payload.apns.payload.aps.category) {
-              payload.apns.payload.aps.category = 'DYNAMIC';
-            }
             payload.apns.payload.actions = req.body.data.actions;
+            needsCategory = true;
           }
 
           if(req.body.data.sound) {
@@ -102,14 +103,19 @@ module.exports = {
 
           if (req.body.data.entity_id) {
             payload.apns.payload.entity_id = req.body.data.entity_id;
+            needsCategory = true;
+            needsMutableContent = true;
           }
 
           if (req.body.data.action_data) {
             payload.apns.payload.homeassistant = req.body.data.action_data;
+            needsCategory = true;
           }
 
           if (req.body.data.attachment) {
             payload.apns.payload.attachment = req.body.data.attachment;
+            needsCategory = true;
+            needsMutableContent = true;
           }
 
           if (req.body.data.url) {
@@ -125,15 +131,16 @@ module.exports = {
           }
         }
 
-        payload.apns.payload.aps.mutableContent = true;
+        if (needsCategory && !payload.apns.payload.aps.category) {
+          payload.apns.payload.aps.category = 'DYNAMIC';
+        }
 
-        if (req.body.message === 'delete_alert') {
-          updateRateLimits = false;
-          delete payload.notification.body;
-          delete payload.apns.payload.aps.alert.title;
-          delete payload.apns.payload.aps.alert.subtitle;
-          delete payload.apns.payload.aps.alert.body;
-          delete payload.apns.payload.aps.sound;
+        if (payload.apns.payload.aps.category) {
+          payload.apns.payload.aps.category = payload.apns.payload.aps.category.toUpperCase();
+        }
+
+        if (needsMutableContent) {
+          payload.apns.payload.aps.mutableContent = true;
         }
       }
     }
