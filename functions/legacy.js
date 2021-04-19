@@ -61,6 +61,18 @@ module.exports = {
         payload.apns.payload.aps.badge = 0;
         payload.apns.payload.homeassistant = { 'command': 'clear_badge' };
         updateRateLimits = false;
+      } else if (req.body.message === 'clear_notification') {
+        payload.notification = {};
+        payload.apns.payload.aps = {};
+        payload.apns.payload.aps.contentAvailable = true;
+        payload.apns.payload.homeassistant = { 'command': 'clear_notification' };
+
+        if (req.body.data) {
+          payload.apns.payload.homeassistant.tag = req.body.data.tag;
+        }
+
+        payload.apns.payload.homeassistant.collapseId = payload.apns.headers['apns-collapse-id'];
+        updateRateLimits = false;
       } else {
         if(req.body.data) {
           if (req.body.data.subtitle) {
@@ -115,6 +127,14 @@ module.exports = {
 
           if (req.body.data.presentation_options) {
             payload.apns.payload.presentation_options = req.body.data.presentation_options;
+          }
+
+          if (typeof req.body.data.tag === "string") {
+            payload.apns.headers['apns-collapse-id'] = req.body.data.tag;
+          }
+
+          if (typeof req.body.data.group === "string") {
+            payload.apns.payload.aps['thread-id'] = req.body.data.group;
           }
         }
 
