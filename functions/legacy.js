@@ -162,6 +162,15 @@ module.exports = {
         if (needsMutableContent) {
           payload.apns.payload.aps.mutableContent = true;
         }
+
+        if (req.body.message === 'delete_alert') {
+          updateRateLimits = false;
+          delete payload.notification.body;
+          delete payload.apns.payload.aps.alert.title;
+          delete payload.apns.payload.aps.alert.subtitle;
+          delete payload.apns.payload.aps.alert.body;
+          delete payload.apns.payload.aps.sound;
+        }
       }
     }
 
