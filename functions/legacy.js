@@ -130,6 +130,31 @@ module.exports = {
             needsMutableContent = true;
           }
 
+          const addAttachment = (url, contentType) => {
+            if (!url) {
+              return;
+            }
+
+            if (!payload.apns.payload.attachment) {
+              payload.apns.payload.attachment = {};
+            }
+
+            if (!payload.apns.payload.attachment['content-type']) {
+              payload.apns.payload.attachment['content-type'] = contentType;
+            }
+
+            if (!payload.apns.payload.attachment.url) {
+              payload.apns.payload.attachment.url = url;
+            }       
+
+            needsCategory = true;
+            needsMutableContent = true;
+          };
+            
+          addAttachment(req.body.data.video, 'mpeg4');
+          addAttachment(req.body.data.image, 'jpeg');
+          addAttachment(req.body.data.audio, 'waveformaudio');
+
           if (req.body.data.url) {
             payload.apns.payload.url = req.body.data.url;
           }
