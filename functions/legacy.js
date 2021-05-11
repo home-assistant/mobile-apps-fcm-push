@@ -73,6 +73,12 @@ module.exports = {
 
         payload.apns.payload.homeassistant.collapseId = payload.apns.headers['apns-collapse-id'];
         updateRateLimits = false;
+      } else if (req.body.message === 'update_complications') {
+        payload.notification = {};
+        payload.apns.payload.aps = {};
+        payload.apns.payload.aps.contentAvailable = true;
+        payload.apns.payload.homeassistant = { 'command': 'update_complications' };
+        updateRateLimits = false;
       } else {
         if(req.body.data) {
           var needsCategory = false;
