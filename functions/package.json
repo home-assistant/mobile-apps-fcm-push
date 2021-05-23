@@ -8,7 +8,7 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "mocha"
+    "test": "nyc --reporter=lcov --reporter=text-summary mocha"
   },
   "dependencies": {
     "@google-cloud/logging": "^9.2.3",
@@ -19,7 +19,9 @@
     "eslint": "^7.27.0",
     "eslint-plugin-mocha": "^8.1.0",
     "eslint-plugin-promise": "^5.1.0",
-    "mocha": "^8.4.0"
+    "istanbul": "^0.4.5",
+    "mocha": "^8.4.0",
+    "nyc": "^15.1.0"
   },
   "engines": {
     "node": "12"

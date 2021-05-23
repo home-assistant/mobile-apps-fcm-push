@@ -27,3 +27,7 @@ jobs:
     - name: Run lint
       run: npm run lint
       working-directory: ${{ env.working-directory }}
+    - uses: codecov/codecov-action@v1
+      name: "Upload Code Coverage"
+      files: ./functions/coverage/lcov.info
+
