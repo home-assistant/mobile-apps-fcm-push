@@ -1,0 +1,27 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  functions:
+    runs-on: ubuntu-latest
+    env:
+      working-directory: functions/
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+    - name: Setup node
+      uses: actions/setup-node@v1
+      with:
+        node-version: 10
+        working-directory: ${{ env.working-directory }}
+    - name: Install dependencies
+      run: npm install
+      working-directory: ${{ env.working-directory }}
+    - name: Run
+      run: npm test
+      working-directory: ${{ env.working-directory }}
