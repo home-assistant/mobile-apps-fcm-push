@@ -29,5 +29,6 @@ jobs:
       working-directory: ${{ env.working-directory }}
     - uses: codecov/codecov-action@v1
       name: "Upload Code Coverage"
-      files: ./functions/coverage/lcov.info
+      with:
+        files: ./functions/coverage/lcov.info
 
