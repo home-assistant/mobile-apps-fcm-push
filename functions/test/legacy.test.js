@@ -7,6 +7,10 @@ describe('legacy.js', function () {
     describe('input/output tests', function () {
         const dir = './test/fixtures/legacy/';
         fs.readdirSync(dir).forEach(file => {
+            if (!file.endsWith(".json")) {
+                return;
+            }
+
             describe(`${file}`, function() {
                 var input;
                 var expectedApns;

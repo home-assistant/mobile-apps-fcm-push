@@ -67,11 +67,16 @@ module.exports = {
         payload.apns.payload.aps.contentAvailable = true;
         payload.apns.payload.homeassistant = { 'command': 'clear_notification' };
 
-        if (req.body.data) {
+        if (req.body.data.tag) {
           payload.apns.payload.homeassistant.tag = req.body.data.tag;
         }
 
-        payload.apns.payload.homeassistant.collapseId = payload.apns.headers['apns-collapse-id'];
+        if (payload.apns.headers['apns-collapse-id']) {
+          payload.apns.payload.homeassistant.collapseId = payload.apns.headers['apns-collapse-id'];
+        }
+
+        delete payload.apns.headers['apns-collapse-id'];
+
         updateRateLimits = false;
       } else if (req.body.message === 'update_complications') {
         payload.notification = {};
