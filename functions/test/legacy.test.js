@@ -28,7 +28,7 @@ describe('legacy.js', function () {
                                     "payload": json["payload"]
                                 }
                             },
-                            "updateRateLimits": (json["rate_limit"] == undefined) ? true : json["rate_limit"]
+                            "updateRateLimits": json["rate_limit"]
                         }
                         done();
                     })
