@@ -20,27 +20,27 @@ module.exports = {
       }
     };
 
-    if(req.body.title) {
+    if (req.body.title) {
       payload.notification.title = req.body.title;
       payload.apns.payload.aps.alert.title = req.body.title;
     }
 
-    if(req.body.data) {
+    if (req.body.data) {
       for (const key of ['apns', 'data']) {
         if (req.body.data[key]) {
-          payload[key] = req.body.data[key]
+          payload[key] = req.body.data[key];
         }
       }
 
       // Special handling because mapping apns_headers -> apns.headers
-      if(req.body.data.apns_headers) {
+      if (req.body.data.apns_headers) {
         payload.apns.headers = req.body.data.apns_headers;
       }
     }
 
     var updateRateLimits = true;
 
-    if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
+    if (req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
       // Enable old SNS iOS specific push setup.
       if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
         payload.notification = {};
@@ -56,7 +56,7 @@ module.exports = {
         payload.apns.payload.homeassistant = { 'command': 'clear_badge' };
         updateRateLimits = false;
       } else {
-        if(req.body.data) {
+        if (req.body.data) {
           if (req.body.data.subtitle) {
             payload.apns.payload.aps.alert.subtitle = req.body.data.subtitle;
           }
@@ -67,9 +67,9 @@ module.exports = {
             }
           }
 
-          if(req.body.data.sound) {
+          if (req.body.data.sound) {
             payload.apns.payload.aps.sound = req.body.data.sound;
-          } else if(req.body.data.push && req.body.data.push.sound) {
+          } else if (req.body.data.push && req.body.data.push.sound) {
             payload.apns.payload.aps.sound = req.body.data.push.sound;
           }
 
@@ -111,23 +111,23 @@ module.exports = {
       }
     }
 
-    if(payload.apns.payload.aps.sound) {
-      if((typeof payload.apns.payload.aps.sound === "string") && (payload.apns.payload.aps.sound.toLowerCase() === "none")) {
+    if (payload.apns.payload.aps.sound) {
+      if ((typeof payload.apns.payload.aps.sound === "string") && (payload.apns.payload.aps.sound.toLowerCase() === "none")) {
         delete payload.apns.payload.aps.sound;
-      } else if(typeof payload.apns.payload.aps.sound === "object") {
-        if(payload.apns.payload.aps.sound.volume) {
+      } else if (typeof payload.apns.payload.aps.sound === "object") {
+        if (payload.apns.payload.aps.sound.volume) {
           payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
         }
-        if(payload.apns.payload.aps.sound.critical) {
+        if (payload.apns.payload.aps.sound.critical) {
           payload.apns.payload.aps.sound.critical = parseInt(payload.apns.payload.aps.sound.critical);
         }
-        if(payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) {
+        if (payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) {
           updateRateLimits = false;
         }
       }
     }
-    if(payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
-    if(payload.apns.payload.aps.contentAvailable) {
+    if (payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
+    if (payload.apns.payload.aps.contentAvailable) {
       payload.apns.headers['apns-push-type'] = 'background';
     } else {
       payload.apns.headers['apns-push-type'] = 'alert';
@@ -135,4 +135,4 @@ module.exports = {
 
     return { updateRateLimits: updateRateLimits, payload: payload };
   }
-}
+};
