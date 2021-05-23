@@ -4,10 +4,18 @@
     "ecmaVersion": 2017
   },
   "plugins": [
-    "promise"
+    "promise",
+    "mocha"
   ],
   "extends": "eslint:recommended",
   "rules": {
+    // We are terrible at doing this, so make it required and --fix-able
+    // Spaces after `if` or `else`
+    "keyword-spacing": ["error"],
+
+    // Consistent semicolons -- always
+    "semi": ["error", "always"],
+
     // Removed rule "disallow the use of console" from recommended eslint rules
     "no-console": "off",
 
@@ -19,9 +27,6 @@
 
     // Removed rule "disallow unused variables" from recommended eslint rules
     "no-unused-vars": "off",
-
-    // Removed rule "disallow mixed spaces and tabs for indentation" from recommended eslint rules
-    "no-mixed-spaces-and-tabs": "off",
 
     // Removed rule "disallow the use of undeclared variables unless mentioned in /*global */ comments" from recommended eslint rules
     "no-undef": "off",
@@ -108,7 +113,9 @@
     "no-path-concat": 1,
 
     // Prefer using arrow functions for callbacks
-    "prefer-arrow-callback": 1,
+    // Mocha-specific override, because you lose `this` when using arrow callbacks
+    "prefer-arrow-callback": 0,
+    "mocha/prefer-arrow-callback": 2,
 
     // Return inside each then() to create readable and reusable Promise chains.
     // Forces developers to return console logs and http calls in promises.

@@ -1,4 +1,4 @@
-const path = require('path')
+const path = require('path');
 
 module.exports = {
   createPayload: function createPayload(req) {
@@ -26,27 +26,27 @@ module.exports = {
       }
     };
 
-    if(req.body.title) {
+    if (req.body.title) {
       payload.notification.title = req.body.title;
       payload.apns.payload.aps.alert.title = req.body.title;
     }
 
-    if(req.body.data) {
+    if (req.body.data) {
       for (const key of ['android', 'apns', 'data', 'webpush']) {
         if (req.body.data[key]) {
-          payload[key] = req.body.data[key]
+          payload[key] = req.body.data[key];
         }
       }
 
       // Special handling because mapping apns_headers -> apns.headers
-      if(req.body.data.apns_headers) {
+      if (req.body.data.apns_headers) {
         payload.apns.headers = req.body.data.apns_headers;
       }
     }
 
     var updateRateLimits = true;
 
-    if(req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
+    if (req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
       // Enable old SNS iOS specific push setup.
       if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
         payload.notification = {};
@@ -67,11 +67,16 @@ module.exports = {
         payload.apns.payload.aps.contentAvailable = true;
         payload.apns.payload.homeassistant = { 'command': 'clear_notification' };
 
-        if (req.body.data) {
+        if (req.body.data.tag) {
           payload.apns.payload.homeassistant.tag = req.body.data.tag;
         }
 
-        payload.apns.payload.homeassistant.collapseId = payload.apns.headers['apns-collapse-id'];
+        if (payload.apns.headers['apns-collapse-id']) {
+          payload.apns.payload.homeassistant.collapseId = payload.apns.headers['apns-collapse-id'];
+        }
+
+        delete payload.apns.headers['apns-collapse-id'];
+
         updateRateLimits = false;
       } else if (req.body.message === 'update_complications') {
         payload.notification = {};
@@ -80,7 +85,7 @@ module.exports = {
         payload.apns.payload.homeassistant = { 'command': 'update_complications' };
         updateRateLimits = false;
       } else {
-        if(req.body.data) {
+        if (req.body.data) {
           var needsCategory = false;
           var needsMutableContent = false;
 
@@ -94,25 +99,25 @@ module.exports = {
             }
           }
 
-          if(req.body.data.actions) {
+          if (req.body.data.actions) {
             payload.apns.payload.actions = req.body.data.actions;
             needsCategory = true;
           }
 
-          if(req.body.data.sound) {
+          if (req.body.data.sound) {
             payload.apns.payload.aps.sound = req.body.data.sound;
-          } else if(req.body.data.push && req.body.data.push.sound) {
+          } else if (req.body.data.push && req.body.data.push.sound) {
             payload.apns.payload.aps.sound = req.body.data.push.sound;
           }
 
-          if((typeof req.body.registration_info.os_version === "string")
+          if ((typeof req.body.registration_info.os_version === "string")
             && (req.body.registration_info.os_version.startsWith('10.15'))) {
-            switch(typeof payload.apns.payload.aps.sound) {
+            switch (typeof payload.apns.payload.aps.sound) {
               case "string":
                 payload.apns.payload.aps.sound = path.parse(payload.apns.payload.aps.sound).name;
                 break;
               case "object":
-                if(typeof payload.apns.payload.aps.sound.name === "string") {
+                if (typeof payload.apns.payload.aps.sound.name === "string") {
                   payload.apns.payload.aps.sound.name = path.parse(payload.apns.payload.aps.sound.name).name;
                 }
                 break;
@@ -205,23 +210,23 @@ module.exports = {
       }
     }
 
-    if(payload.apns.payload.aps.sound) {
-      if((typeof payload.apns.payload.aps.sound === "string") && (payload.apns.payload.aps.sound.toLowerCase() === "none")) {
+    if (payload.apns.payload.aps.sound) {
+      if ((typeof payload.apns.payload.aps.sound === "string") && (payload.apns.payload.aps.sound.toLowerCase() === "none")) {
         delete payload.apns.payload.aps.sound;
-      } else if(typeof payload.apns.payload.aps.sound === "object") {
-        if(payload.apns.payload.aps.sound.volume) {
+      } else if (typeof payload.apns.payload.aps.sound === "object") {
+        if (payload.apns.payload.aps.sound.volume) {
           payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
         }
-        if(payload.apns.payload.aps.sound.critical) {
+        if (payload.apns.payload.aps.sound.critical) {
           payload.apns.payload.aps.sound.critical = parseInt(payload.apns.payload.aps.sound.critical);
         }
-        if(payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) {
+        if (payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) {
           updateRateLimits = false;
         }
       }
     }
-    if(payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
-    if(payload.apns.payload.aps.contentAvailable) {
+    if (payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
+    if (payload.apns.payload.aps.contentAvailable) {
       payload.apns.headers['apns-push-type'] = 'background';
     } else {
       payload.apns.headers['apns-push-type'] = 'alert';
@@ -229,4 +234,4 @@ module.exports = {
 
     return { updateRateLimits: updateRateLimits, payload: payload };
   }
-}
+};

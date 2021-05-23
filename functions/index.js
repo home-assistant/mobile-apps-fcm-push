@@ -4,9 +4,9 @@ const { Logging } = require('@google-cloud/logging');
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
-const android = require('./android')
-const ios = require('./ios')
-const legacy = require('./legacy')
+const android = require('./android');
+const ios = require('./ios');
+const legacy = require('./legacy');
 
 admin.initializeApp();
 
@@ -14,11 +14,11 @@ var db = admin.firestore();
 
 const logging = new Logging();
 
-const debug = isDebug()
+const debug = isDebug();
 const MAX_NOTIFICATIONS_PER_DAY = 500;
 
-const region = functions.config().app && functions.config().app.region || "us-central1"
-const regionalFunctions = functions.region(region)
+const region = functions.config().app && functions.config().app.region || "us-central1";
+const regionalFunctions = functions.region(region);
 
 exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, android.createPayload);
@@ -34,10 +34,10 @@ exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res
 
 exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => {
   var token = req.body.push_token;
-  if(!token) {
+  if (!token) {
     return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
   }
-  if(token.indexOf(':') === -1) { // A check for old SNS tokens
+  if (token.indexOf(':') === -1) { // A check for old SNS tokens
     return res.status(403).send({ 'errorMessage': 'That is not a valid FCM token' });
   }
 
@@ -55,10 +55,10 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
 
   try {
     let currentDoc = await ref.get();
-    if(currentDoc.exists) {
+    if (currentDoc.exists) {
       docData = currentDoc.data();
     }
-  } catch(err) {
+  } catch (err) {
     return handleError(req, res, payload, 'getRateLimitDoc', err);
   }
 
@@ -73,9 +73,9 @@ exports.cleanupOldRateLimits = regionalFunctions.pubsub.schedule('every day 01:0
   var ref = db.collection('rateLimits').where('__name__', '<', today);
   try {
     await deleteQueryBatch(db, ref);
-  } catch(err) {
+  } catch (err) {
     console.error('Error when deleting older documents!', err);
-    throw err
+    throw err;
   }
 });
 
@@ -103,19 +103,19 @@ async function deleteQueryBatch(db, query) {
 }
 
 async function handleRequest(req, res, payloadHandler) {
-  if(debug) functions.logger.info('Handling request', { requestBody: JSON.stringify(req.body) });
+  if (debug) functions.logger.info('Handling request', { requestBody: JSON.stringify(req.body) });
   var today = getToday();
   var token = req.body.push_token;
-  if(!token) {
+  if (!token) {
     return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
   }
-  if(token.indexOf(':') === -1) { // A check for old SNS tokens
+  if (token.indexOf(':') === -1) { // A check for old SNS tokens
     return res.status(403).send({'errorMessage': 'That is not a valid FCM token'});
   }
 
-  let response = payloadHandler(req)
-  var updateRateLimits = response.updateRateLimits
-  var payload = response.payload
+  let response = payloadHandler(req);
+  var updateRateLimits = response.updateRateLimits;
+  var payload = response.payload;
 
   payload['token'] = token;
 
@@ -132,24 +132,24 @@ async function handleRequest(req, res, payloadHandler) {
   try {
     let currentDoc = await ref.get();
     docExists = currentDoc.exists;
-    if(currentDoc.exists) {
+    if (currentDoc.exists) {
       docData = currentDoc.data();
     }
-  } catch(err) {
+  } catch (err) {
     return handleError(req, res, payload, 'getRateLimitDoc', err);
   }
 
   docData.attemptsCount = docData.attemptsCount + 1;
 
-  if(updateRateLimits && docData.deliveredCount === MAX_NOTIFICATIONS_PER_DAY) {
+  if (updateRateLimits && docData.deliveredCount === MAX_NOTIFICATIONS_PER_DAY) {
     try {
       await sendRateLimitedNotification(token);
-    } catch(err) {
+    } catch (err) {
       handleError(req, res, payload, 'sendRateLimitNotification', err, false);
     }
   }
 
-  if(updateRateLimits && docData.deliveredCount > MAX_NOTIFICATIONS_PER_DAY) {
+  if (updateRateLimits && docData.deliveredCount > MAX_NOTIFICATIONS_PER_DAY) {
     await setRateLimitDoc(ref, docExists, docData, req, res);
     return res.status(429).send({
       errorType: 'RateLimited',
@@ -161,24 +161,24 @@ async function handleRequest(req, res, payloadHandler) {
 
   docData.totalCount = docData.totalCount + 1;
 
-  if(debug) functions.logger.info('Sending notification', { notification: JSON.stringify(payload) });
+  if (debug) functions.logger.info('Sending notification', { notification: JSON.stringify(payload) });
 
   var messageId;
   try {
     messageId = await admin.messaging().send(payload);
     docData.deliveredCount = docData.deliveredCount + 1;
-  } catch(err) {
+  } catch (err) {
     docData.errorCount = docData.errorCount + 1;
     await setRateLimitDoc(ref, docExists, docData, res);
     return handleError(req, res, payload, 'sendNotification', err);
   }
 
-  if(debug) functions.logger.info('Successfully sent notification', { messageId: messageId, notification: JSON.stringify(payload) });
+  if (debug) functions.logger.info('Successfully sent notification', { messageId: messageId, notification: JSON.stringify(payload) });
 
   if (updateRateLimits) {
     await setRateLimitDoc(ref, docExists, docData, res);
   } else {
-    if(debug) functions.logger.info('Not updating rate limits because notification is critical or command');
+    if (debug) functions.logger.info('Not updating rate limits because notification is critical or command');
   }
 
   return res.status(201).send({
@@ -192,7 +192,7 @@ async function handleRequest(req, res, payloadHandler) {
 
 function isDebug() {
   let conf = functions.config();
-  if(conf.debug){
+  if (conf.debug){
     return conf.debug.local;
   }
   return false;
@@ -200,15 +200,15 @@ function isDebug() {
 
 async function setRateLimitDoc(ref, docExists, docData, req, res) {
   try {
-    if(docExists) {
-      if(debug) functions.logger.info('Updating existing rate limit doc!');
+    if (docExists) {
+      if (debug) functions.logger.info('Updating existing rate limit doc!');
       await ref.update(docData);
     } else {
-      if(debug) functions.logger.info('Creating new rate limit doc!');
+      if (debug) functions.logger.info('Creating new rate limit doc!');
       await ref.set(docData);
     }
-  } catch(err) {
-    const step = docExists ? 'updateRateLimitDocument' : 'createRateLimitDocument'
+  } catch (err) {
+    const step = docExists ? 'updateRateLimitDocument' : 'createRateLimitDocument';
     return handleError(req, res, null, step, err);
   }
   return true;
@@ -216,23 +216,23 @@ async function setRateLimitDoc(ref, docExists, docData, req, res) {
 
 function handleError(req, res, payload = {}, step, incomingError, shouldExit = true) {
   if (!incomingError) {
-    incomingError = new Error(`handleError was passed an undefined incomingError`)
+    incomingError = new Error(`handleError was passed an undefined incomingError`);
   }
 
   if (!(incomingError instanceof Error)) {
-    functions.logger.warn('incomingError is not instanceof Error, its constructor.name is', incomingError.constructor.name)
-    incomingError = new Error(incomingError)
+    functions.logger.warn('incomingError is not instanceof Error, its constructor.name is', incomingError.constructor.name);
+    incomingError = new Error(incomingError);
   }
 
   return reportError(incomingError, step, req, payload).then(() => {
-    if(!shouldExit) { return true }
+    if (!shouldExit) { return true; }
 
     return res.status(500).send({
       errorType: 'InternalError',
       errorStep: step,
       message: incomingError.message,
     });
-  })
+  });
 }
 
 function reportError(err, step, req, notificationObj) {
@@ -243,12 +243,12 @@ function reportError(err, step, req, notificationObj) {
     step: step,
     requestBody: JSON.stringify(req.body),
     notification: JSON.stringify(notificationObj)
-  }
+  };
 
-  if(req.body.registration_info) {
-    labels.appID = req.body.registration_info.app_id
-    labels.appVersion = req.body.registration_info.app_version
-    labels.osVersion = req.body.registration_info.os_version
+  if (req.body.registration_info) {
+    labels.appID = req.body.registration_info.app_id;
+    labels.appVersion = req.body.registration_info.app_version;
+    labels.osVersion = req.body.registration_info.os_version;
   }
 
   // https://cloud.google.com/logging/docs/api/ref_v2beta1/rest/v2beta1/MonitoredResource
@@ -307,7 +307,7 @@ function getToday() {
 function getRateLimitsObject(doc) {
   var d = new Date();
   var remainingCount = (MAX_NOTIFICATIONS_PER_DAY - doc.deliveredCount);
-  if(remainingCount === -1) remainingCount = 0;
+  if (remainingCount === -1) remainingCount = 0;
   return {
     attempts: (doc.attemptsCount || 0),
     successful: (doc.deliveredCount || 0),
@@ -355,6 +355,6 @@ async function sendRateLimitedNotification(token) {
       analytics_label: "rateLimitNotification"
     }
   };
-  if(debug) functions.logger.info('Sending rate limit notification', { notification: JSON.stringify(payload) });
+  if (debug) functions.logger.info('Sending rate limit notification', { notification: JSON.stringify(payload) });
   return await admin.messaging().send(payload);
 }
