@@ -10,15 +10,11 @@
     },
     "rate_limit": false,
     "headers": {
-        "apns-push-type": "background"
+        "apns-push-type": "alert"
     },
     "payload": {
         "aps": {
-            "contentAvailable": true,
             "badge": 0
-        },
-        "homeassistant": {
-            "command": "clear_badge"
         }
     }
 }
