@@ -26,12 +26,12 @@
         "function": "iOSV1"
       },
       {
-        "source": "/api/checkRateLimits",
-        "function": "checkRateLimits"
-      },
-      {
         "source": "/api/sendPush/encrypted/v1",
         "function": "encryptedV1"
+      },
+      {
+        "source": "/api/checkRateLimits",
+        "function": "checkRateLimits"
       },
       {
         "source": "**",

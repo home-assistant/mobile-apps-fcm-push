@@ -1,14 +1,13 @@
 'use strict';
 
 const { Logging } = require('@google-cloud/logging');
-
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 const android = require('./android');
 const ios = require('./ios');
 const legacy = require('./legacy');
-const encrypted = require('./encrypted')
+const encrypted = require('./encrypted');
 
 admin.initializeApp();
 
@@ -32,6 +31,10 @@ exports.iOSV1 = regionalFunctions.https.onRequest(async (req, res) => {
 
 exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, legacy.createPayload);
+});
+
+exports.encryptedV1 = functions.https.onRequest(async (req, res) => {
+  return handleRequest(req, res, encrypted.createPayload);
 });
 
 exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => {
@@ -68,10 +71,6 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
     target: token,
     rateLimits: getRateLimitsObject(docData),
   });
-});
-
-exports.encryptedV1 = functions.https.onRequest(async (req, res) => {
-  return handleRequest(req, res, encrypted.createPayload);
 });
 
 exports.cleanupOldRateLimits = regionalFunctions.pubsub.schedule('every day 01:00').timeZone('Etc/UTC').onRun(async (context) => {

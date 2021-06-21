@@ -24,4 +24,4 @@ module.exports = {
 
       return { updateRateLimits: true, payload: payload };
     }
-  }
+  };
