@@ -7,6 +7,7 @@ const admin = require('firebase-admin');
 const android = require('./android');
 const ios = require('./ios');
 const legacy = require('./legacy');
+const encrypted = require('./encrypted');
 
 admin.initializeApp();
 
@@ -30,6 +31,10 @@ exports.iOSV1 = regionalFunctions.https.onRequest(async (req, res) => {
 
 exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, legacy.createPayload);
+});
+
+exports.encryptedV1 = functions.https.onRequest(async (req, res) => {
+  return handleRequest(req, res, encrypted.createPayload);
 });
 
 exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => {
