@@ -1,14 +1,8 @@
-const path = require('path');
-
 module.exports = {
   createPayload: function createPayload(req) {
     let payload = {
       notification: {
         body: req.body.message,
-      },
-      android: {
-        ttl: 0,
-        priority: "HIGH"
       },
       apns: {
         headers: {},
@@ -22,7 +16,7 @@ module.exports = {
         }
       },
       fcm_options: {
-        analytics_label: "legacyNotification"
+        analytics_label: "iosV1Notification"
       }
     };
 
@@ -32,7 +26,7 @@ module.exports = {
     }
 
     if (req.body.data) {
-      for (const key of ['android', 'apns', 'data', 'webpush']) {
+      for (const key of ['apns', 'data']) {
         if (req.body.data[key]) {
           payload[key] = req.body.data[key];
         }
@@ -61,34 +55,8 @@ module.exports = {
         payload.apns.payload.aps.badge = 0;
         payload.apns.payload.homeassistant = { 'command': 'clear_badge' };
         updateRateLimits = false;
-      } else if (req.body.message === 'clear_notification') {
-        payload.notification = {};
-        payload.apns.payload.aps = {};
-        payload.apns.payload.aps.contentAvailable = true;
-        payload.apns.payload.homeassistant = { 'command': 'clear_notification' };
-
-        if (req.body.data.tag) {
-          payload.apns.payload.homeassistant.tag = req.body.data.tag;
-        }
-
-        if (payload.apns.headers['apns-collapse-id']) {
-          payload.apns.payload.homeassistant.collapseId = payload.apns.headers['apns-collapse-id'];
-        }
-
-        delete payload.apns.headers['apns-collapse-id'];
-
-        updateRateLimits = false;
-      } else if (req.body.message === 'update_complications') {
-        payload.notification = {};
-        payload.apns.payload.aps = {};
-        payload.apns.payload.aps.contentAvailable = true;
-        payload.apns.payload.homeassistant = { 'command': 'update_complications' };
-        updateRateLimits = false;
       } else {
         if (req.body.data) {
-          var needsCategory = false;
-          var needsMutableContent = false;
-
           if (req.body.data.subtitle) {
             payload.apns.payload.aps.alert.subtitle = req.body.data.subtitle;
           }
@@ -99,72 +67,23 @@ module.exports = {
             }
           }
 
-          if (req.body.data.actions) {
-            payload.apns.payload.actions = req.body.data.actions;
-            needsCategory = true;
-          }
-
           if (req.body.data.sound) {
             payload.apns.payload.aps.sound = req.body.data.sound;
           } else if (req.body.data.push && req.body.data.push.sound) {
             payload.apns.payload.aps.sound = req.body.data.push.sound;
           }
 
-          if ((typeof req.body.registration_info.os_version === "string")
-            && (req.body.registration_info.os_version.startsWith('10.15'))) {
-            switch (typeof payload.apns.payload.aps.sound) {
-              case "string":
-                payload.apns.payload.aps.sound = path.parse(payload.apns.payload.aps.sound).name;
-                break;
-              case "object":
-                if (typeof payload.apns.payload.aps.sound.name === "string") {
-                  payload.apns.payload.aps.sound.name = path.parse(payload.apns.payload.aps.sound.name).name;
-                }
-                break;
-            }
-          }
-
           if (req.body.data.entity_id) {
             payload.apns.payload.entity_id = req.body.data.entity_id;
-            needsCategory = true;
-            needsMutableContent = true;
           }
 
           if (req.body.data.action_data) {
             payload.apns.payload.homeassistant = req.body.data.action_data;
-            needsCategory = true;
           }
 
           if (req.body.data.attachment) {
             payload.apns.payload.attachment = req.body.data.attachment;
-            needsCategory = true;
-            needsMutableContent = true;
           }
-
-          const addAttachment = (url, contentType) => {
-            if (!url) {
-              return;
-            }
-
-            if (!payload.apns.payload.attachment) {
-              payload.apns.payload.attachment = {};
-            }
-
-            if (!payload.apns.payload.attachment['content-type']) {
-              payload.apns.payload.attachment['content-type'] = contentType;
-            }
-
-            if (!payload.apns.payload.attachment.url) {
-              payload.apns.payload.attachment.url = url;
-            }       
-
-            needsCategory = true;
-            needsMutableContent = true;
-          };
-            
-          addAttachment(req.body.data.video, 'mpeg4');
-          addAttachment(req.body.data.image, 'jpeg');
-          addAttachment(req.body.data.audio, 'waveformaudio');
 
           if (req.body.data.url) {
             payload.apns.payload.url = req.body.data.url;
@@ -177,27 +96,9 @@ module.exports = {
           if (req.body.data.presentation_options) {
             payload.apns.payload.presentation_options = req.body.data.presentation_options;
           }
-
-          if (typeof req.body.data.tag === "string") {
-            payload.apns.headers['apns-collapse-id'] = req.body.data.tag;
-          }
-
-          if (typeof req.body.data.group === "string") {
-            payload.apns.payload.aps['thread-id'] = req.body.data.group;
-          }
         }
 
-        if (needsCategory && !payload.apns.payload.aps.category) {
-          payload.apns.payload.aps.category = 'DYNAMIC';
-        }
-
-        if (payload.apns.payload.aps.category) {
-          payload.apns.payload.aps.category = payload.apns.payload.aps.category.toUpperCase();
-        }
-
-        if (needsMutableContent) {
-          payload.apns.payload.aps.mutableContent = true;
-        }
+        payload.apns.payload.aps.mutableContent = true;
 
         if (req.body.message === 'delete_alert') {
           updateRateLimits = false;
