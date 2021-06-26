@@ -47,13 +47,20 @@ module.exports = {
     var updateRateLimits = true;
 
     if (req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
-      // Enable old SNS iOS specific push setup.
-      if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
+      const addCommand = (command) => {
         payload.notification = {};
         payload.apns.payload.aps = {};
         payload.apns.payload.aps.contentAvailable = true;
-        payload.apns.payload.homeassistant = { 'command': 'request_location_update' };
+        payload.apns.payload.homeassistant = { 'command': command };
+        if (req.body.data && req.body.data.push && req.body.data.push.badge) {
+          payload.apns.payload.aps.badge = req.body.data.push.badge;
+        }
         updateRateLimits = false;
+      };
+
+      // Enable old SNS iOS specific push setup.
+      if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
+        addCommand('request_location_update');
       } else if (req.body.message === 'clear_badge') {
         payload.notification = {};
         payload.apns.payload.aps = {};
@@ -62,10 +69,7 @@ module.exports = {
         payload.apns.payload.homeassistant = { 'command': 'clear_badge' };
         updateRateLimits = false;
       } else if (req.body.message === 'clear_notification') {
-        payload.notification = {};
-        payload.apns.payload.aps = {};
-        payload.apns.payload.aps.contentAvailable = true;
-        payload.apns.payload.homeassistant = { 'command': 'clear_notification' };
+        addCommand('clear_notification');
 
         if (req.body.data.tag) {
           payload.apns.payload.homeassistant.tag = req.body.data.tag;
@@ -79,10 +83,7 @@ module.exports = {
 
         updateRateLimits = false;
       } else if (req.body.message === 'update_complications') {
-        payload.notification = {};
-        payload.apns.payload.aps = {};
-        payload.apns.payload.aps.contentAvailable = true;
-        payload.apns.payload.homeassistant = { 'command': 'update_complications' };
+        addCommand('update_complications');
         updateRateLimits = false;
       } else {
         if (req.body.data) {
