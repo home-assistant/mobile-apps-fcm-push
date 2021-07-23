@@ -1,20 +1,28 @@
 {
     "input": {
-        "title": "extra excluded title",
-        "message": "clear_badge",
+        "message": "test",
+        "data": {
+            "push": {
+                "thread-id": "test_group"
+            }
+        },
         "registration_info": {
             "app_id": "io.robbie.HomeAssistant.dev",
             "os_version": "10.15",
             "app_version": "2021.5"
         }
     },
-    "rate_limit": false,
+    "rate_limit": true,
     "headers": {
         "apns-push-type": "alert"
     },
     "payload": {
         "aps": {
-            "badge": 0
+            "alert": {
+                "body": "test"
+            },
+            "sound": "default",
+            "thread-id": "test_group"
         }
     }
 }
