@@ -47,7 +47,7 @@ module.exports = {
         'defaultSound', 'defaultVibrateTimings', 'defaultLightSettings', 'vibrateTimings',
         'visibility', 'notificationCount', 'lightSettings', 'image', 'timeout', 'importance', 
 		'subject', 'group', 'icon_url', 'ledColor', 'vibrationPattern', 'persistent', 
-		'chronometer', 'when'
+		'chronometer', 'when', 'alert_once'
       ]) {
         if (req.body.data[key]){
           payload.data[key] = String(req.body.data[key]);
