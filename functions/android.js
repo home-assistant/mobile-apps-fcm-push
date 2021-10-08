@@ -47,7 +47,10 @@ module.exports = {
         'defaultSound', 'defaultVibrateTimings', 'defaultLightSettings', 'vibrateTimings',
         'visibility', 'notificationCount', 'lightSettings', 'image', 'timeout', 'importance', 
 		'subject', 'group', 'icon_url', 'ledColor', 'vibrationPattern', 'persistent', 
-		'chronometer', 'when', 'alert_once', 'intent_class_name'
+		'chronometer', 'when', 'alert_once', 'intent_class_name', 'tts_text',
+	        'media_stream', 'command', 'intent_package_name', 'intent_action',
+	        'intent_extras', 'media_command', 'media_package_name', 'intent_uri',
+	        'intent_type'
       ]) {
         if (req.body.data[key]){
           payload.data[key] = String(req.body.data[key]);
