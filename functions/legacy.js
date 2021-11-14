@@ -210,6 +210,11 @@ module.exports = {
           delete payload.apns.payload.aps.alert.body;
           delete payload.apns.payload.aps.sound;
         }
+
+        if (req.body.message === 'test_push_source') {
+          payload.apns.payload.aps.alert.title = req.body.message;
+          payload.apns.payload.aps.alert.body = 'apns-fcm';
+        }
       }
     }
 
