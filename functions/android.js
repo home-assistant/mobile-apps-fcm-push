@@ -46,8 +46,9 @@ module.exports = {
         'ticker', 'sticky', 'eventTime', 'localOnly', 'notificationPriority',
         'defaultSound', 'defaultVibrateTimings', 'defaultLightSettings', 'vibrateTimings',
         'visibility', 'notificationCount', 'lightSettings', 'image', 'timeout', 'importance', 
-		'subject', 'group', 'icon_url', 'ledColor', 'vibrationPattern', 'persistent', 
-		'chronometer', 'when', 'alert_once', 'intent_class_name', 'notification_icon'
+	'subject', 'group', 'icon_url', 'ledColor', 'vibrationPattern', 'persistent', 
+	'chronometer', 'when', 'alert_once', 'intent_class_name', 'notification_icon',
+	'ble_advertise', 'ble_transmit'
       ]) {
         if (req.body.data[key]){
           payload.data[key] = String(req.body.data[key]);
@@ -62,7 +63,7 @@ module.exports = {
       const messages_to_ignore = ['request_location_update', 'clear_notification', 'remove_channel', 'command_dnd', 
       'command_ringer_mode', 'command_broadcast_intent','command_volume_level', 'command_screen_on',
       'command_bluetooth', 'command_high_accuracy_mode', 'command_activity', 'command_webview', 'command_media',
-      'command_update_sensors'];
+      'command_update_sensors', 'command_ble_transmitter'];
       if (messages_to_ignore.includes(req.body.message)) {
         updateRateLimits = false;
       }
