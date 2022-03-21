@@ -48,7 +48,8 @@ module.exports = {
         'visibility', 'notificationCount', 'lightSettings', 'image', 'timeout', 'importance', 
         'subject', 'group', 'icon_url', 'ledColor', 'vibrationPattern', 'persistent', 
         'chronometer', 'when', 'alert_once', 'intent_class_name', 'notification_icon',
-        'ble_advertise', 'ble_transmit', 'video', 'high_accuracy_update_interval'
+        'ble_advertise', 'ble_transmit', 'video', 'high_accuracy_update_interval',
+        'package_name'
       ]) {
         if (req.body.data[key]){
           payload.data[key] = String(req.body.data[key]);
