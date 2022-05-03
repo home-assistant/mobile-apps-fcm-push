@@ -18,7 +18,7 @@ const debug = isDebug();
 const MAX_NOTIFICATIONS_PER_DAY = 500;
 
 const region = functions.config().app && functions.config().app.region || "us-central1";
-const regionalFunctions = functions.region(region);
+const regionalFunctions = functions.region(region).runWith({ timeoutSeconds: 10 });
 
 exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) => {
   return handleRequest(req, res, android.createPayload);
