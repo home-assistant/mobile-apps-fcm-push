@@ -2,15 +2,18 @@
 
 const { Logging } = require('@google-cloud/logging');
 const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+const { initializeApp } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
+const { getMessaging } = require('firebase-admin/messaging');
 
 const android = require('./android');
 const ios = require('./ios');
 const legacy = require('./legacy');
 
-admin.initializeApp();
+initializeApp();
 
-var db = admin.firestore();
+var db = getFirestore();
+var messaging = getMessaging();
 
 const logging = new Logging();
 
@@ -165,7 +168,7 @@ async function handleRequest(req, res, payloadHandler) {
 
   var messageId;
   try {
-    messageId = await admin.messaging().send(payload);
+    messageId = await messaging.send(payload);
     docData.deliveredCount = docData.deliveredCount + 1;
   } catch (err) {
     docData.errorCount = docData.errorCount + 1;
@@ -356,5 +359,5 @@ async function sendRateLimitedNotification(token) {
     }
   };
   if (debug) functions.logger.info('Sending rate limit notification', { notification: JSON.stringify(payload) });
-  return await admin.messaging().send(payload);
+  return await messaging.send(payload);
 }
