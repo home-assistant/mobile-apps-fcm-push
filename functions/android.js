@@ -51,7 +51,7 @@ module.exports = {
         'ble_advertise', 'ble_transmit', 'video', 'high_accuracy_update_interval',
         'package_name', 'tts_text', 'media_stream', 'command', 'intent_package_name',
         'intent_action', 'intent_extras', 'media_command', 'media_package_name', 'intent_uri',
-    		'intent_type'
+        'intent_type'
 
       ]) {
         if (req.body.data[key]){
