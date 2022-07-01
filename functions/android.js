@@ -45,12 +45,14 @@ module.exports = {
         'bodyLocKey', 'bodyLocArgs', 'titleLocKey', 'titleLocArgs', 'channel',
         'ticker', 'sticky', 'eventTime', 'localOnly', 'notificationPriority',
         'defaultSound', 'defaultVibrateTimings', 'defaultLightSettings', 'vibrateTimings',
-        'visibility', 'notificationCount', 'lightSettings', 'image', 'timeout', 'importance', 
-		'subject', 'group', 'icon_url', 'ledColor', 'vibrationPattern', 'persistent', 
-		'chronometer', 'when', 'alert_once', 'intent_class_name', 'tts_text',
-		'media_stream', 'command', 'intent_package_name', 'intent_action',
-		'intent_extras', 'media_command', 'media_package_name', 'intent_uri',
-		'intent_type'
+        'visibility', 'notificationCount', 'lightSettings', 'image', 'timeout', 'importance',
+        'subject', 'group', 'icon_url', 'ledColor', 'vibrationPattern', 'persistent',
+        'chronometer', 'when', 'alert_once', 'intent_class_name', 'notification_icon',
+        'ble_advertise', 'ble_transmit', 'video', 'high_accuracy_update_interval',
+        'package_name', 'tts_text', 'media_stream', 'command', 'intent_package_name',
+        'intent_action', 'intent_extras', 'media_command', 'media_package_name', 'intent_uri',
+    		'intent_type'
+
       ]) {
         if (req.body.data[key]){
           payload.data[key] = String(req.body.data[key]);
@@ -64,7 +66,8 @@ module.exports = {
       payload.data.message = req.body.message;
       const messages_to_ignore = ['request_location_update', 'clear_notification', 'remove_channel', 'command_dnd', 
       'command_ringer_mode', 'command_broadcast_intent','command_volume_level', 'command_screen_on',
-      'command_bluetooth', 'command_high_accuracy_mode', 'command_activity', 'command_webview', 'command_media'];
+      'command_bluetooth', 'command_high_accuracy_mode', 'command_activity', 'command_webview', 'command_media',
+      'command_update_sensors', 'command_ble_transmitter', 'command_persistent_connection'];
       if (messages_to_ignore.includes(req.body.message)) {
         updateRateLimits = false;
       }

@@ -46,6 +46,10 @@ module.exports = {
 
     var updateRateLimits = true;
 
+    if (req.body.registration_info.webhook_id) {
+      payload.apns.payload.webhook_id = req.body.registration_info.webhook_id;
+    }
+
     if (req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
       const addCommand = (command) => {
         payload.notification = {};
@@ -205,6 +209,11 @@ module.exports = {
           delete payload.apns.payload.aps.alert.subtitle;
           delete payload.apns.payload.aps.alert.body;
           delete payload.apns.payload.aps.sound;
+        }
+
+        if (req.body.message === 'test_push_source') {
+          payload.apns.payload.aps.alert.title = req.body.message;
+          payload.apns.payload.aps.alert.body = 'apns-fcm';
         }
       }
     }
