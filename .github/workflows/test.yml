@@ -13,7 +13,7 @@ jobs:
       working-directory: functions/
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Setup node
       uses: actions/setup-node@v1
       with:
