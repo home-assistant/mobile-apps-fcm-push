@@ -48,7 +48,6 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
 
   var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
 
-  var docExists = false;
   var docData = {
     attemptsCount: 0,
     deliveredCount: 0,
