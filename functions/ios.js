@@ -38,7 +38,7 @@ module.exports = {
       }
     }
 
-    var updateRateLimits = true;
+    let updateRateLimits = true;
 
     if (req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
       // Enable old SNS iOS specific push setup.
@@ -62,7 +62,7 @@ module.exports = {
           }
 
           if (req.body.data.push) {
-            for (var attrname in req.body.data.push) {
+            for (let attrname in req.body.data.push) {
               payload.apns.payload.aps[attrname] = req.body.data.push[attrname];
             }
           }
