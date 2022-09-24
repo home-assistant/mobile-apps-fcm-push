@@ -67,7 +67,8 @@ module.exports = {
       const messages_to_ignore = ['request_location_update', 'clear_notification', 'remove_channel', 'command_dnd', 
       'command_ringer_mode', 'command_broadcast_intent','command_volume_level', 'command_screen_on',
       'command_bluetooth', 'command_high_accuracy_mode', 'command_activity', 'command_webview', 'command_media',
-      'command_update_sensors', 'command_ble_transmitter', 'command_persistent_connection', 'command_stop_tts'];
+      'command_update_sensors', 'command_ble_transmitter', 'command_persistent_connection', 'command_stop_tts',
+      'command_auto_screen_brightness', 'command_screen_brightness_level'];
       if (messages_to_ignore.includes(req.body.message)) {
         updateRateLimits = false;
       }
