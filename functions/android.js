@@ -51,7 +51,7 @@ module.exports = {
         'ble_advertise', 'ble_transmit', 'video', 'high_accuracy_update_interval',
         'package_name', 'tts_text', 'media_stream', 'command', 'intent_package_name',
         'intent_action', 'intent_extras', 'media_command', 'media_package_name', 'intent_uri',
-        'intent_type', 'ble_uuid', 'ble_major', 'ble_minor',
+        'intent_type', 'ble_uuid', 'ble_major', 'ble_minor', 'confirmation'
         'app_lock_enabled', 'app_lock_timeout', 'home_bypass_enabled'
       ]) {
         if (req.body.data[key]){
@@ -67,7 +67,8 @@ module.exports = {
       const messages_to_ignore = ['request_location_update', 'clear_notification', 'remove_channel', 'command_dnd', 
       'command_ringer_mode', 'command_broadcast_intent','command_volume_level', 'command_screen_on',
       'command_bluetooth', 'command_high_accuracy_mode', 'command_activity', 'command_app_lock', 'command_webview', 'command_media',
-      'command_update_sensors', 'command_ble_transmitter', 'command_persistent_connection', 'command_stop_tts'];
+      'command_update_sensors', 'command_ble_transmitter', 'command_persistent_connection', 'command_stop_tts',
+      'command_auto_screen_brightness', 'command_screen_brightness_level'];
       if (messages_to_ignore.includes(req.body.message)) {
         updateRateLimits = false;
       }
