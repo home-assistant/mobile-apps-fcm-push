@@ -77,6 +77,11 @@ module.exports = {
       payload.data.title = req.body.title;
     }
 
+    // Include webhook ID to allow distinguishing which notify service sent this.
+    if (req.body.registration_info.webhook_id) {
+      payload.data.webhook_id = req.body.registration_info.webhook_id;
+    }
+
     return { updateRateLimits: updateRateLimits, payload: payload };
   }
 };
