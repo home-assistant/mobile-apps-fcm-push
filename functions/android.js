@@ -52,7 +52,7 @@ module.exports = {
         'package_name', 'tts_text', 'media_stream', 'command', 'intent_package_name',
         'intent_action', 'intent_extras', 'media_command', 'media_package_name', 'intent_uri',
         'intent_type', 'ble_uuid', 'ble_major', 'ble_minor', 'confirmation',
-        'app_lock_enabled', 'app_lock_timeout', 'home_bypass_enabled'
+        'app_lock_enabled', 'app_lock_timeout', 'home_bypass_enabled', 'car_ui'
       ]) {
         if (req.body.data[key]){
           payload.data[key] = String(req.body.data[key]);
