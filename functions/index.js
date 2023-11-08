@@ -3,7 +3,7 @@
 const { Logging } = require('@google-cloud/logging');
 const functions = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 
 const android = require('./android');
@@ -71,40 +71,6 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
   });
 });
 
-exports.cleanupOldRateLimits = regionalFunctions.pubsub.schedule('every day 01:00').timeZone('Etc/UTC').onRun(async (context) => {
-  var today = getToday();
-  var ref = db.collection('rateLimits').where('__name__', '<', today);
-  try {
-    await deleteQueryBatch(db, ref);
-  } catch (err) {
-    console.error('Error when deleting older documents!', err);
-    throw err;
-  }
-});
-
-async function deleteQueryBatch(db, query) {
-  const snapshot = await query.get();
-
-  const batchSize = snapshot.size;
-  if (batchSize === 0) {
-    // When there are no documents left, we are done
-    return;
-  }
-
-  // Delete documents in a batch
-  const batch = db.batch();
-  snapshot.docs.forEach((doc) => {
-    batch.delete(doc.ref);
-  });
-  await batch.commit();
-
-  // Recurse on the next process tick, to avoid
-  // exploding the stack.
-  process.nextTick(() => {
-    deleteQueryBatch(db, query);
-  });
-}
-
 async function handleRequest(req, res, payloadHandler) {
   if (debug) functions.logger.info('Handling request', { requestBody: JSON.stringify(req.body) });
   var today = getToday();
@@ -130,6 +96,7 @@ async function handleRequest(req, res, payloadHandler) {
     deliveredCount: 0,
     errorCount: 0,
     totalCount: 0,
+    expiresAt: getFirestoreTimestamp(),
   };
 
   try {
@@ -305,6 +272,12 @@ function getToday() {
   var mm = String(today.getMonth() + 1).padStart(2, '0');
   var yyyy = today.getFullYear();
   return yyyy + mm + dd;
+}
+
+function getFirestoreTimestamp() {
+  const now = new Date().getTime();
+  let endDate = new Date(now - (now % 86400000) + 86400000);
+  return Timestamp.fromDate(endDate);
 }
 
 function getRateLimitsObject(doc) {
