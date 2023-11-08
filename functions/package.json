@@ -23,7 +23,7 @@
     "nyc": "^15.1.0"
   },
   "engines": {
-    "node": "16"
+    "node": "20"
   },
   "private": true
 }
