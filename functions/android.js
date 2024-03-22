@@ -47,7 +47,7 @@ module.exports = {
         'defaultSound', 'defaultVibrateTimings', 'defaultLightSettings', 'vibrateTimings',
         'visibility', 'notificationCount', 'lightSettings', 'image', 'timeout', 'importance',
         'subject', 'group', 'icon_url', 'ledColor', 'vibrationPattern', 'persistent',
-        'chronometer', 'when', 'alert_once', 'intent_class_name', 'notification_icon',
+        'chronometer', 'when', 'when_relative', 'alert_once', 'intent_class_name', 'notification_icon',
         'ble_advertise', 'ble_transmit', 'video', 'high_accuracy_update_interval',
         'package_name', 'tts_text', 'media_stream', 'command', 'intent_package_name',
         'intent_action', 'intent_extras', 'media_command', 'media_package_name', 'intent_uri',
