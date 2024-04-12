@@ -77,6 +77,10 @@ module.exports = {
           payload.apns.payload.homeassistant.tag = req.body.data.tag;
         }
 
+        if (req.body.data.badge) {
+          payload.apns.payload.aps.badge = req.body.data.badge;
+        }
+
         if (payload.apns.headers['apns-collapse-id']) {
           payload.apns.payload.homeassistant.collapseId = payload.apns.headers['apns-collapse-id'];
         }
