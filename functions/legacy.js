@@ -87,6 +87,9 @@ module.exports = {
       } else if (req.body.message === 'update_complications') {
         addCommand('update_complications');
         updateRateLimits = false;
+      } else if (req.body.message === 'update_widgets') {
+        addCommand('update_widgets');
+        updateRateLimits = false;
       } else {
         if (req.body.data) {
           var needsCategory = false;
