@@ -25,6 +25,9 @@ module.exports = {
           if (action.uri){
             payload.data["action_"+(i+1)+"_uri"] = action.uri;
           }
+          if (action.behavior){
+            payload.data["action_"+(i+1)+"_behavior"] = action.behavior;
+          }
         }
       }
 
