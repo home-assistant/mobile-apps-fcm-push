@@ -58,7 +58,7 @@ module.exports = {
         'app_lock_enabled', 'app_lock_timeout', 'home_bypass_enabled', 'car_ui', 'ble_measured_power',
         'progress', 'progress_max', 'progress_indeterminate'
       ]) {
-        if (req.body.data[key]){
+        if (key in req.body.data){
           payload.data[key] = String(req.body.data[key]);
         }
       }
