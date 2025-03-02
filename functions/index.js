@@ -163,7 +163,7 @@ async function handleRequest(req, res, payloadHandler) {
 function isDebug() {
   let conf = functions.config();
   if (conf.debug){
-    return conf.debug.local;
+    return conf.debug.local === 'true';
   }
   return false;
 }
