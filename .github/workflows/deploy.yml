@@ -21,7 +21,7 @@ jobs:
           cd functions
           npm install
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@v14.2.0
+        uses: w9jds/firebase-action@v14.2.1
         with:
           args: deploy
         env:
