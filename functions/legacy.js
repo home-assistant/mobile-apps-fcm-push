@@ -1,8 +1,8 @@
 const path = require('path');
 
 module.exports = {
-  createPayload: function createPayload(req) {
-    let payload = {
+  createPayload: (req) => {
+    const payload = {
       notification: {
         body: req.body.message,
       },
@@ -44,7 +44,7 @@ module.exports = {
       }
     }
 
-    var updateRateLimits = true;
+    let updateRateLimits = true;
 
     if (req.body.registration_info.webhook_id) {
       payload.apns.payload.webhook_id = req.body.registration_info.webhook_id;
@@ -91,18 +91,17 @@ module.exports = {
         addCommand('update_widgets');
         updateRateLimits = false;
       } else {
+        let needsCategory = false;
+        let needsMutableContent = false;
+        
         if (req.body.data) {
-          var needsCategory = false;
-          var needsMutableContent = false;
 
           if (req.body.data.subtitle) {
             payload.apns.payload.aps.alert.subtitle = req.body.data.subtitle;
           }
 
           if (req.body.data.push) {
-            for (var attrname in req.body.data.push) {
-              payload.apns.payload.aps[attrname] = req.body.data.push[attrname];
-            }
+            Object.assign(payload.apns.payload.aps, req.body.data.push);
           }
 
           if (req.body.data.actions) {
@@ -116,17 +115,13 @@ module.exports = {
             payload.apns.payload.aps.sound = req.body.data.push.sound;
           }
 
-          if ((typeof req.body.registration_info.os_version === "string")
-            && (req.body.registration_info.os_version.startsWith('10.15'))) {
-            switch (typeof payload.apns.payload.aps.sound) {
-              case "string":
-                payload.apns.payload.aps.sound = path.parse(payload.apns.payload.aps.sound).name;
-                break;
-              case "object":
-                if (typeof payload.apns.payload.aps.sound.name === "string") {
-                  payload.apns.payload.aps.sound.name = path.parse(payload.apns.payload.aps.sound.name).name;
-                }
-                break;
+          if (typeof req.body.registration_info.os_version === 'string'
+            && req.body.registration_info.os_version.startsWith('10.15')) {
+            const soundType = typeof payload.apns.payload.aps.sound;
+            if (soundType === 'string') {
+              payload.apns.payload.aps.sound = path.parse(payload.apns.payload.aps.sound).name;
+            } else if (soundType === 'object' && typeof payload.apns.payload.aps.sound.name === 'string') {
+              payload.apns.payload.aps.sound.name = path.parse(payload.apns.payload.aps.sound.name).name;
             }
           }
 
@@ -184,11 +179,11 @@ module.exports = {
             payload.apns.payload.presentation_options = req.body.data.presentation_options;
           }
 
-          if (typeof req.body.data.tag === "string") {
+          if (typeof req.body.data.tag === 'string') {
             payload.apns.headers['apns-collapse-id'] = req.body.data.tag;
           }
 
-          if (typeof req.body.data.group === "string") {
+          if (typeof req.body.data.group === 'string') {
             payload.apns.payload.aps['thread-id'] = req.body.data.group;
           }
         }
@@ -222,27 +217,30 @@ module.exports = {
     }
 
     if (payload.apns.payload.aps.sound) {
-      if ((typeof payload.apns.payload.aps.sound === "string") && (payload.apns.payload.aps.sound.toLowerCase() === "none")) {
+      const { sound } = payload.apns.payload.aps;
+      if (typeof sound === 'string' && sound.toLowerCase() === 'none') {
         delete payload.apns.payload.aps.sound;
-      } else if (typeof payload.apns.payload.aps.sound === "object") {
-        if (payload.apns.payload.aps.sound.volume) {
-          payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
+      } else if (typeof sound === 'object') {
+        if (sound.volume) {
+          payload.apns.payload.aps.sound.volume = parseFloat(sound.volume);
         }
-        if (payload.apns.payload.aps.sound.critical) {
-          payload.apns.payload.aps.sound.critical = parseInt(payload.apns.payload.aps.sound.critical);
+        if (sound.critical) {
+          payload.apns.payload.aps.sound.critical = parseInt(sound.critical, 10);
         }
-        if (payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) {
+        if (sound.critical && sound.volume > 0) {
           updateRateLimits = false;
         }
       }
     }
-    if (payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
+    if (payload.apns.payload.aps.badge) {
+      payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
+    }
     if (payload.apns.payload.aps.contentAvailable) {
       payload.apns.headers['apns-push-type'] = 'background';
     } else {
       payload.apns.headers['apns-push-type'] = 'alert';
     }
 
-    return { updateRateLimits: updateRateLimits, payload: payload };
+    return { updateRateLimits, payload };
   }
 };

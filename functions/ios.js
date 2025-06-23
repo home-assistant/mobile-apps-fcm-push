@@ -1,6 +1,6 @@
 module.exports = {
-  createPayload: function createPayload(req) {
-    let payload = {
+  createPayload: (req) => {
+    const payload = {
       notification: {
         body: req.body.message,
       },
@@ -38,7 +38,7 @@ module.exports = {
       }
     }
 
-    var updateRateLimits = true;
+    let updateRateLimits = true;
 
     if (req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
       // Enable old SNS iOS specific push setup.
@@ -62,9 +62,7 @@ module.exports = {
           }
 
           if (req.body.data.push) {
-            for (var attrname in req.body.data.push) {
-              payload.apns.payload.aps[attrname] = req.body.data.push[attrname];
-            }
+            Object.assign(payload.apns.payload.aps, req.body.data.push);
           }
 
           if (req.body.data.sound) {
@@ -112,27 +110,30 @@ module.exports = {
     }
 
     if (payload.apns.payload.aps.sound) {
-      if ((typeof payload.apns.payload.aps.sound === "string") && (payload.apns.payload.aps.sound.toLowerCase() === "none")) {
+      const { sound } = payload.apns.payload.aps;
+      if (typeof sound === 'string' && sound.toLowerCase() === 'none') {
         delete payload.apns.payload.aps.sound;
-      } else if (typeof payload.apns.payload.aps.sound === "object") {
-        if (payload.apns.payload.aps.sound.volume) {
-          payload.apns.payload.aps.sound.volume = parseFloat(payload.apns.payload.aps.sound.volume);
+      } else if (typeof sound === 'object') {
+        if (sound.volume) {
+          payload.apns.payload.aps.sound.volume = parseFloat(sound.volume);
         }
-        if (payload.apns.payload.aps.sound.critical) {
-          payload.apns.payload.aps.sound.critical = parseInt(payload.apns.payload.aps.sound.critical);
+        if (sound.critical) {
+          payload.apns.payload.aps.sound.critical = parseInt(sound.critical, 10);
         }
-        if (payload.apns.payload.aps.sound.critical && payload.apns.payload.aps.sound.volume > 0) {
+        if (sound.critical && sound.volume > 0) {
           updateRateLimits = false;
         }
       }
     }
-    if (payload.apns.payload.aps.badge) payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
+    if (payload.apns.payload.aps.badge) {
+      payload.apns.payload.aps.badge = Number(payload.apns.payload.aps.badge);
+    }
     if (payload.apns.payload.aps.contentAvailable) {
       payload.apns.headers['apns-push-type'] = 'background';
     } else {
       payload.apns.headers['apns-push-type'] = 'alert';
     }
 
-    return { updateRateLimits: updateRateLimits, payload: payload };
+    return { updateRateLimits, payload };
   }
 };
