@@ -334,3 +334,6 @@ async function sendRateLimitedNotification(token) {
   if (debug) functions.logger.info('Sending rate limit notification', { notification: JSON.stringify(payload) });
   return await messaging.send(payload);
 }
+
+// Export for testing
+exports.handleRequest = handleRequest;
