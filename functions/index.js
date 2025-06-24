@@ -280,7 +280,9 @@ function getFirestoreTimestamp() {
 function getRateLimitsObject(doc) {
   const d = new Date();
   let remainingCount = MAX_NOTIFICATIONS_PER_DAY - doc.deliveredCount;
-  if (remainingCount < 0) remainingCount = 0;
+  if (remainingCount < 0) {
+    remainingCount = 0;
+  }
   return {
     attempts: doc.attemptsCount || 0,
     successful: doc.deliveredCount || 0,
