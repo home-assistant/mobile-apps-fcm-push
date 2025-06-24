@@ -7,6 +7,26 @@ describe('handleRequest', function() {
   let firestoreStub, messagingStub, functionsStub;
   let docRef, docSnapshot;
 
+  // Factory function to create fresh request objects for each test
+  function createMockRequest() {
+    return {
+      body: {
+        push_token: 'test:token123',
+        message: 'Test message',
+        title: 'Test title',
+        registration_info: {
+          app_id: 'com.test.app',
+          app_version: '1.0.0',
+          os_version: '14.0'
+        }
+      },
+      method: 'POST',
+      originalUrl: '/test',
+      get: sinon.stub().returns('test-user-agent'),
+      ip: '127.0.0.1'
+    };
+  }
+
   before(function() {
     // Set up core stubs that will be used throughout
     messagingStub = {
@@ -59,23 +79,8 @@ describe('handleRequest', function() {
     messagingStub.send.reset();
     messagingStub.send.resolves('mock-message-id');
 
-    // Set up request and response mock objects
-    req = {
-      body: {
-        push_token: 'test:token123',
-        message: 'Test message',
-        title: 'Test title',
-        registration_info: {
-          app_id: 'com.test.app',
-          app_version: '1.0.0',
-          os_version: '14.0'
-        }
-      },
-      method: 'POST',
-      originalUrl: '/test',
-      get: sinon.stub().returns('test-user-agent'),
-      ip: '127.0.0.1'
-    };
+    // Set up request and response mock objects - using a factory function to avoid mutations
+    req = createMockRequest();
 
     res = {
       status: sinon.stub().returnsThis(),
@@ -251,9 +256,10 @@ describe('handleRequest', function() {
   });
 
   it('should handle invalid token format', async function() {
-    req.body.push_token = 'invalid-token-without-colon';
+    const testReq = createMockRequest();
+    testReq.body.push_token = 'invalid-token-without-colon';
 
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await indexModule.handleRequest(testReq, res, payloadHandler);
 
     // Verify error response
     assert(res.status.calledWith(403), 'Should return 403 for invalid token');
@@ -266,9 +272,10 @@ describe('handleRequest', function() {
   });
 
   it('should handle missing token', async function() {
-    delete req.body.push_token;
+    const testReq = createMockRequest();
+    delete testReq.body.push_token;
 
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await indexModule.handleRequest(testReq, res, payloadHandler);
 
     // Verify error response
     assert(res.status.calledWith(403), 'Should return 403 for missing token');
