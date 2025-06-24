@@ -223,6 +223,7 @@ describe('handleRequest', function() {
     assert(docRef.update.calledOnce, 'doc.update should be called');
     const updatedData = docRef.update.firstCall.args[0];
     assert.equal(updatedData.attemptsCount, 502, 'Attempts count should be incremented');
+    assert.equal(updatedData.deliveredCount, 501, 'Delivered count should not be incremented');
 
     // Verify rate limit response
     assert(res.status.calledWith(429), 'Should return 429 status for rate limit');
