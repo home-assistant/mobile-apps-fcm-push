@@ -77,7 +77,7 @@ module.exports = {
         'command_persistent_connection', 'command_stop_tts', 'command_auto_screen_brightness', 
         'command_screen_brightness_level', 'command_screen_off_timeout', 'command_flashlight'
       ];
-      if (messagesToIgnore.includes(req.body.message)) {
+      if (androidMessagesToIgnore.includes(req.body.message)) {
         updateRateLimits = false;
       }
     }
