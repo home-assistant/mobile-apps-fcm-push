@@ -3,16 +3,15 @@
 const { Logging } = require('@google-cloud/logging');
 const functions = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 
 const android = require('./android');
 const ios = require('./ios');
 const legacy = require('./legacy');
+const RateLimiter = require('./rate-limiter');
 
 initializeApp();
 
-const db = getFirestore();
 const messaging = getMessaging();
 
 const logging = new Logging();
@@ -44,34 +43,20 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
     return res.status(403).send({ 'errorMessage': 'That is not a valid FCM token' });
   }
 
-  const today = getToday();
-  const ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
-
-  let docData = {
-    attemptsCount: 0,
-    deliveredCount: 0,
-    errorCount: 0,
-    totalCount: 0,
-  };
-
   try {
-    const currentDoc = await ref.get();
-    if (currentDoc.exists) {
-      docData = currentDoc.data();
-    }
+    const rateLimiter = new RateLimiter(token, MAX_NOTIFICATIONS_PER_DAY, debug);
+    const rateLimitInfo = await rateLimiter.checkRateLimit();
+    return res.status(200).send({
+      target: token,
+      rateLimits: rateLimitInfo.rateLimits,
+    });
   } catch (err) {
-    return handleError(req, res, {}, 'getRateLimitDoc', err);
+    return handleError(req, res, { token }, 'getRateLimitDoc', err);
   }
-
-  return res.status(200).send({
-    target: token,
-    rateLimits: getRateLimitsObject(docData),
-  });
 });
 
 async function handleRequest(req, res, payloadHandler) {
   if (debug) functions.logger.info('Handling request', { requestBody: JSON.stringify(req.body) });
-  const today = getToday();
   const { push_token: token } = req.body;
   if (!token) {
     return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
@@ -84,74 +69,67 @@ async function handleRequest(req, res, payloadHandler) {
 
   payload.token = token;
 
-  const ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
-
-  let docExists = false;
-  let docData = {
-    attemptsCount: 0,
-    deliveredCount: 0,
-    errorCount: 0,
-    totalCount: 0,
-    expiresAt: getFirestoreTimestamp(),
-  };
-
+  // Create a rate limiter instance for this request
+  const rateLimiter = new RateLimiter(token, MAX_NOTIFICATIONS_PER_DAY, debug);
+  
+  let rateLimitInfo;
   try {
-    const currentDoc = await ref.get();
-    docExists = currentDoc.exists;
-    if (currentDoc.exists) {
-      docData = currentDoc.data();
-    }
+    rateLimitInfo = await rateLimiter.checkRateLimit();
   } catch (err) {
     return handleError(req, res, payload, 'getRateLimitDoc', err);
   }
 
-  docData.attemptsCount = docData.attemptsCount + 1;
+  if (updateRateLimits) {
+    // Increment attempts count
+    const attemptInfo = await rateLimiter.recordAttempt();
+    
+    if (attemptInfo.shouldSendRateLimitNotification) {
+      try {
+        await sendRateLimitedNotification(token);
+      } catch (err) {
+        handleError(req, res, payload, 'sendRateLimitNotification', err, false);
+      }
+    }
 
-  if (updateRateLimits && docData.deliveredCount === MAX_NOTIFICATIONS_PER_DAY) {
-    try {
-      await sendRateLimitedNotification(token);
-    } catch (err) {
-      handleError(req, res, payload, 'sendRateLimitNotification', err, false);
+    if (attemptInfo.isRateLimited) {
+      return res.status(429).send({
+        errorType: 'RateLimited',
+        message: 'The given target has reached the maximum number of notifications allowed per day. Please try again later.',
+        target: token,
+        rateLimits: attemptInfo.rateLimits,
+      });
     }
   }
-
-  if (updateRateLimits && docData.deliveredCount > MAX_NOTIFICATIONS_PER_DAY) {
-    await setRateLimitDoc(ref, docExists, docData, req, res);
-    return res.status(429).send({
-      errorType: 'RateLimited',
-      message: 'The given target has reached the maximum number of notifications allowed per day. Please try again later.',
-      target: token,
-      rateLimits: getRateLimitsObject(docData),
-    });
-  }
-
-  docData.totalCount = docData.totalCount + 1;
 
   if (debug) functions.logger.info('Sending notification', { notification: JSON.stringify(payload) });
 
   let messageId;
+  let rateLimits;
   try {
     messageId = await messaging.send(payload);
-    docData.deliveredCount = docData.deliveredCount + 1;
+    if (updateRateLimits) {
+      rateLimits = await rateLimiter.recordSuccess();
+    } else {
+      rateLimits = rateLimitInfo.rateLimits;
+    }
   } catch (err) {
-    docData.errorCount = docData.errorCount + 1;
-    await setRateLimitDoc(ref, docExists, docData, res);
+    if (updateRateLimits) {
+      await rateLimiter.recordError();
+    }
     return handleError(req, res, payload, 'sendNotification', err);
   }
 
   if (debug) functions.logger.info('Successfully sent notification', { messageId: messageId, notification: JSON.stringify(payload) });
 
-  if (updateRateLimits) {
-    await setRateLimitDoc(ref, docExists, docData, res);
-  } else {
-    if (debug) functions.logger.info('Not updating rate limits because notification is critical or command');
+  if (!updateRateLimits && debug) {
+    functions.logger.info('Not updating rate limits because notification is critical or command');
   }
 
   return res.status(201).send({
     messageId,
     sentPayload: payload,
     target: token,
-    rateLimits: getRateLimitsObject(docData),
+    rateLimits: rateLimits,
   });
 
 }
@@ -164,21 +142,6 @@ function isDebug() {
   return false;
 }
 
-async function setRateLimitDoc(ref, docExists, docData, req, res) {
-  try {
-    if (docExists) {
-      if (debug) functions.logger.info('Updating existing rate limit doc!');
-      await ref.update(docData);
-    } else {
-      if (debug) functions.logger.info('Creating new rate limit doc!');
-      await ref.set(docData);
-    }
-  } catch (err) {
-    const step = docExists ? 'updateRateLimitDocument' : 'createRateLimitDocument';
-    return handleError(req, res, null, step, err);
-  }
-  return true;
-}
 
 function handleError(req, res, payload = {}, step, incomingError, shouldExit = true) {
   if (!incomingError) {
@@ -263,36 +226,6 @@ function reportError(err, step, req, notificationObj) {
   });
 }
 
-function getToday() {
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  return `${yyyy}${mm}${dd}`;
-}
-
-function getFirestoreTimestamp() {
-  const now = new Date().getTime();
-  const endDate = new Date(now - (now % 86400000) + 86400000);
-  return Timestamp.fromDate(endDate);
-}
-
-function getRateLimitsObject(doc) {
-  const d = new Date();
-  let remainingCount = MAX_NOTIFICATIONS_PER_DAY - doc.deliveredCount;
-  if (remainingCount < 0) {
-    remainingCount = 0;
-  }
-  return {
-    attempts: doc.attemptsCount || 0,
-    successful: doc.deliveredCount || 0,
-    errors: doc.errorCount || 0,
-    total: doc.totalCount || 0,
-    maximum: MAX_NOTIFICATIONS_PER_DAY,
-    remaining: remainingCount,
-    resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
-  };
-}
 
 async function sendRateLimitedNotification(token) {
   const d = new Date();
