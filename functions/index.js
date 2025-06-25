@@ -12,8 +12,8 @@ const legacy = require('./legacy');
 
 initializeApp();
 
-var db = getFirestore();
-var messaging = getMessaging();
+const db = getFirestore();
+const messaging = getMessaging();
 
 const logging = new Logging();
 
@@ -23,20 +23,20 @@ const MAX_NOTIFICATIONS_PER_DAY = 500;
 const region = functions.config().app && functions.config().app.region || "us-central1";
 const regionalFunctions = functions.region(region).runWith({ timeoutSeconds: 10 });
 
-exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) => {
-  return handleRequest(req, res, android.createPayload);
-});
+exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) => 
+  handleRequest(req, res, android.createPayload)
+);
 
-exports.iOSV1 = regionalFunctions.https.onRequest(async (req, res) => {
-  return handleRequest(req, res, ios.createPayload);
-});
+exports.iOSV1 = regionalFunctions.https.onRequest(async (req, res) => 
+  handleRequest(req, res, ios.createPayload)
+);
 
-exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) => {
-  return handleRequest(req, res, legacy.createPayload);
-});
+exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) => 
+  handleRequest(req, res, legacy.createPayload)
+);
 
 exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => {
-  var token = req.body.push_token;
+  const { push_token: token } = req.body;
   if (!token) {
     return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
   }
@@ -44,12 +44,10 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
     return res.status(403).send({ 'errorMessage': 'That is not a valid FCM token' });
   }
 
-  var today = getToday();
+  const today = getToday();
+  const ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
 
-  var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
-
-  var docExists = false;
-  var docData = {
+  let docData = {
     attemptsCount: 0,
     deliveredCount: 0,
     errorCount: 0,
@@ -57,12 +55,12 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
   };
 
   try {
-    let currentDoc = await ref.get();
+    const currentDoc = await ref.get();
     if (currentDoc.exists) {
       docData = currentDoc.data();
     }
   } catch (err) {
-    return handleError(req, res, payload, 'getRateLimitDoc', err);
+    return handleError(req, res, {}, 'getRateLimitDoc', err);
   }
 
   return res.status(200).send({
@@ -73,8 +71,8 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
 
 async function handleRequest(req, res, payloadHandler) {
   if (debug) functions.logger.info('Handling request', { requestBody: JSON.stringify(req.body) });
-  var today = getToday();
-  var token = req.body.push_token;
+  const today = getToday();
+  const { push_token: token } = req.body;
   if (!token) {
     return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
   }
@@ -82,16 +80,14 @@ async function handleRequest(req, res, payloadHandler) {
     return res.status(403).send({'errorMessage': 'That is not a valid FCM token'});
   }
 
-  let response = payloadHandler(req);
-  var updateRateLimits = response.updateRateLimits;
-  var payload = response.payload;
+  const { updateRateLimits, payload } = payloadHandler(req);
 
-  payload['token'] = token;
+  payload.token = token;
 
-  var ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
+  const ref = db.collection('rateLimits').doc(today).collection('tokens').doc(token);
 
-  var docExists = false;
-  var docData = {
+  let docExists = false;
+  let docData = {
     attemptsCount: 0,
     deliveredCount: 0,
     errorCount: 0,
@@ -100,7 +96,7 @@ async function handleRequest(req, res, payloadHandler) {
   };
 
   try {
-    let currentDoc = await ref.get();
+    const currentDoc = await ref.get();
     docExists = currentDoc.exists;
     if (currentDoc.exists) {
       docData = currentDoc.data();
@@ -133,7 +129,7 @@ async function handleRequest(req, res, payloadHandler) {
 
   if (debug) functions.logger.info('Sending notification', { notification: JSON.stringify(payload) });
 
-  var messageId;
+  let messageId;
   try {
     messageId = await messaging.send(payload);
     docData.deliveredCount = docData.deliveredCount + 1;
@@ -152,7 +148,7 @@ async function handleRequest(req, res, payloadHandler) {
   }
 
   return res.status(201).send({
-    messageId: messageId,
+    messageId,
     sentPayload: payload,
     target: token,
     rateLimits: getRateLimitsObject(docData),
@@ -209,8 +205,8 @@ function reportError(err, step, req, notificationObj) {
   const logName = 'errors-' + step;
   const log = logging.log(logName);
 
-  let labels = {
-    step: step,
+  const labels = {
+    step,
     requestBody: JSON.stringify(req.body),
     notification: JSON.stringify(notificationObj)
   };
@@ -230,11 +226,11 @@ function reportError(err, step, req, notificationObj) {
         // Use region from Cloud Function config as process.env.FIREBASE_CONFIG.locationId only has the project's multi-region location, e.g. us-central or europe-west, and we need a complete Google Cloud location, e.g. us-central1 or europe-west1, to invoke Google Cloud Logging API.
         // See https://firebase.google.com/docs/projects/locations#location-mr
         // and https://firebase.google.com/docs/functions/locations#selecting-regions_firestore-storage
-        region: region
+        region
       }
     },
     severity: 'ERROR',
-    labels: labels
+    labels
   };
 
   // https://cloud.google.com/error-reporting/reference/rest/v1beta1/ErrorEvent
@@ -259,46 +255,49 @@ function reportError(err, step, req, notificationObj) {
   return new Promise((resolve, reject) => {
     log.write(log.entry(metadata, errorEvent), (error) => {
       if (error) {
-        return reject(error);
+        reject(error);
+      } else {
+        resolve();
       }
-      return resolve();
     });
   });
 }
 
 function getToday() {
-  var today = new Date();
-  var dd = String(today.getDate()).padStart(2, '0');
-  var mm = String(today.getMonth() + 1).padStart(2, '0');
-  var yyyy = today.getFullYear();
-  return yyyy + mm + dd;
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  return `${yyyy}${mm}${dd}`;
 }
 
 function getFirestoreTimestamp() {
   const now = new Date().getTime();
-  let endDate = new Date(now - (now % 86400000) + 86400000);
+  const endDate = new Date(now - (now % 86400000) + 86400000);
   return Timestamp.fromDate(endDate);
 }
 
 function getRateLimitsObject(doc) {
-  var d = new Date();
-  var remainingCount = (MAX_NOTIFICATIONS_PER_DAY - doc.deliveredCount);
-  if (remainingCount === -1) remainingCount = 0;
+  const d = new Date();
+  let remainingCount = MAX_NOTIFICATIONS_PER_DAY - doc.deliveredCount;
+  if (remainingCount < 0) {
+    remainingCount = 0;
+  }
   return {
-    attempts: (doc.attemptsCount || 0),
-    successful: (doc.deliveredCount || 0),
-    errors: (doc.errorCount || 0),
-    total: (doc.totalCount || 0),
+    attempts: doc.attemptsCount || 0,
+    successful: doc.deliveredCount || 0,
+    errors: doc.errorCount || 0,
+    total: doc.totalCount || 0,
     maximum: MAX_NOTIFICATIONS_PER_DAY,
     remaining: remainingCount,
-    resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate()+1)
+    resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
   };
 }
 
 async function sendRateLimitedNotification(token) {
-  var d = new Date();
-  var strMax = String(MAX_NOTIFICATIONS_PER_DAY);
-  var payload = {
+  const d = new Date();
+  const strMax = String(MAX_NOTIFICATIONS_PER_DAY);
+  const payload = {
     token: token,
     notification: {
       title: 'Notifications Rate Limited',
@@ -307,7 +306,7 @@ async function sendRateLimitedNotification(token) {
     data: {
       rateLimited: 'true',
       maxNotificationsPerDay: strMax,
-      resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate()+1).toISOString(),
+      resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).toISOString(),
     },
     android: {
       notification: {
@@ -332,5 +331,5 @@ async function sendRateLimitedNotification(token) {
     }
   };
   if (debug) functions.logger.info('Sending rate limit notification', { notification: JSON.stringify(payload) });
-  return await messaging.send(payload);
+  return messaging.send(payload);
 }
