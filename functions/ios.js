@@ -9,15 +9,15 @@ module.exports = {
         payload: {
           aps: {
             alert: {
-              body: req.body.message
+              body: req.body.message,
             },
-            sound: 'default'
-          }
-        }
+            sound: 'default',
+          },
+        },
       },
       fcm_options: {
-        analytics_label: "iosV1Notification"
-      }
+        analytics_label: 'iosV1Notification',
+      },
     };
 
     if (req.body.title) {
@@ -42,18 +42,21 @@ module.exports = {
 
     if (req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
       // Enable old SNS iOS specific push setup.
-      if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
+      if (
+        req.body.message === 'request_location_update' ||
+        req.body.message === 'request_location_updates'
+      ) {
         payload.notification = {};
         payload.apns.payload.aps = {};
         payload.apns.payload.aps.contentAvailable = true;
-        payload.apns.payload.homeassistant = { 'command': 'request_location_update' };
+        payload.apns.payload.homeassistant = { command: 'request_location_update' };
         updateRateLimits = false;
       } else if (req.body.message === 'clear_badge') {
         payload.notification = {};
         payload.apns.payload.aps = {};
         payload.apns.payload.aps.contentAvailable = true;
         payload.apns.payload.aps.badge = 0;
-        payload.apns.payload.homeassistant = { 'command': 'clear_badge' };
+        payload.apns.payload.homeassistant = { command: 'clear_badge' };
         updateRateLimits = false;
       } else {
         if (req.body.data) {
@@ -135,5 +138,5 @@ module.exports = {
     }
 
     return { updateRateLimits, payload };
-  }
+  },
 };

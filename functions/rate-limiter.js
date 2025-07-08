@@ -39,15 +39,15 @@ class RateLimiter {
    * Creates a new RateLimiter instance for a specific push token.
    *
    * @param {string} token - The push notification token to rate limit
-   * @param {number} [maxNotificationsPerDay=500] - Maximum notifications allowed per day
+   * @param {number} [maxNotificationsPerDay] - Maximum notifications allowed per day
    * @param {boolean} [debug=false] - Whether to enable debug logging
    */
-  constructor(token, maxNotificationsPerDay = 500, debug = false) {
+  constructor(token, maxNotificationsPerDay, debug = false) {
     this.token = token;
     this.db = getFirestore();
     this.maxNotificationsPerDay = maxNotificationsPerDay;
     this.debug = debug;
-    
+
     // Internal state - will be loaded on first access
     this._loaded = false;
     this._ref = null;
@@ -64,10 +64,10 @@ class RateLimiter {
    */
   async _ensureLoaded() {
     if (this._loaded) return;
-    
+
     const today = this._getToday();
     this._ref = this.db.collection('rateLimits').doc(today).collection('tokens').doc(this.token);
-    
+
     this._docData = {
       attemptsCount: 0,
       deliveredCount: 0,
@@ -81,7 +81,7 @@ class RateLimiter {
     if (currentDoc.exists) {
       this._docData = currentDoc.data();
     }
-    
+
     this._loaded = true;
   }
 
@@ -95,12 +95,13 @@ class RateLimiter {
     await this._ensureLoaded();
 
     const isRateLimited = this._docData.deliveredCount >= this.maxNotificationsPerDay;
-    const shouldSendRateLimitNotification = this._docData.deliveredCount === this.maxNotificationsPerDay;
+    const shouldSendRateLimitNotification =
+      this._docData.deliveredCount === this.maxNotificationsPerDay;
 
     return {
       isRateLimited,
       shouldSendRateLimitNotification,
-      rateLimits: this._getRateLimitsObject(this._docData)
+      rateLimits: this._getRateLimitsObject(this._docData),
     };
   }
 
@@ -113,20 +114,21 @@ class RateLimiter {
    */
   async recordAttempt() {
     await this._ensureLoaded();
-    
+
     this._docData.attemptsCount = this._docData.attemptsCount + 1;
-    
+
     const isRateLimited = this._docData.deliveredCount > this.maxNotificationsPerDay;
-    const shouldSendRateLimitNotification = this._docData.deliveredCount === this.maxNotificationsPerDay;
-    
+    const shouldSendRateLimitNotification =
+      this._docData.deliveredCount === this.maxNotificationsPerDay;
+
     if (this._docData.deliveredCount >= this.maxNotificationsPerDay && isRateLimited) {
       await this._updateDoc();
     }
-    
+
     return {
       isRateLimited,
       shouldSendRateLimitNotification,
-      rateLimits: this._getRateLimitsObject(this._docData)
+      rateLimits: this._getRateLimitsObject(this._docData),
     };
   }
 
@@ -140,13 +142,13 @@ class RateLimiter {
    */
   async recordSuccess() {
     await this._ensureLoaded();
-    
+
     // attemptsCount was already incremented in recordAttempt
     this._docData.deliveredCount = this._docData.deliveredCount + 1;
     this._docData.totalCount = this._docData.totalCount + 1;
-    
+
     await this._updateDoc();
-    
+
     return this._getRateLimitsObject(this._docData);
   }
 
@@ -160,13 +162,13 @@ class RateLimiter {
    */
   async recordError() {
     await this._ensureLoaded();
-    
+
     // attemptsCount was already incremented in recordAttempt
     this._docData.errorCount = this._docData.errorCount + 1;
     this._docData.totalCount = this._docData.totalCount + 1;
-    
+
     await this._updateDoc();
-    
+
     return this._getRateLimitsObject(this._docData);
   }
 
@@ -223,17 +225,17 @@ class RateLimiter {
    */
   _getRateLimitsObject(doc) {
     const d = new Date();
-    let remainingCount = (this.maxNotificationsPerDay - doc.deliveredCount);
+    let remainingCount = this.maxNotificationsPerDay - doc.deliveredCount;
     if (remainingCount < 0) remainingCount = 0;
-    
+
     return {
-      attempts: (doc.attemptsCount || 0),
-      successful: (doc.deliveredCount || 0),
-      errors: (doc.errorCount || 0),
-      total: (doc.totalCount || 0),
+      attempts: doc.attemptsCount || 0,
+      successful: doc.deliveredCount || 0,
+      errors: doc.errorCount || 0,
+      total: doc.totalCount || 0,
       maximum: this.maxNotificationsPerDay,
       remaining: remainingCount,
-      resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
+      resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1),
     };
   }
 }

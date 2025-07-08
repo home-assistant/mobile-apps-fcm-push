@@ -8,22 +8,22 @@ module.exports = {
       },
       android: {
         ttl: 0,
-        priority: "HIGH"
+        priority: 'HIGH',
       },
       apns: {
         headers: {},
         payload: {
           aps: {
             alert: {
-              body: req.body.message
+              body: req.body.message,
             },
-            sound: 'default'
-          }
-        }
+            sound: 'default',
+          },
+        },
       },
       fcm_options: {
-        analytics_label: "legacyNotification"
-      }
+        analytics_label: 'legacyNotification',
+      },
     };
 
     if (req.body.title) {
@@ -55,7 +55,7 @@ module.exports = {
         payload.notification = {};
         payload.apns.payload.aps = {};
         payload.apns.payload.aps.contentAvailable = true;
-        payload.apns.payload.homeassistant = { 'command': command };
+        payload.apns.payload.homeassistant = { command: command };
         if (req.body.data && req.body.data.push && req.body.data.push.badge) {
           payload.apns.payload.aps.badge = req.body.data.push.badge;
         }
@@ -63,7 +63,10 @@ module.exports = {
       };
 
       // Enable old SNS iOS specific push setup.
-      if (req.body.message === 'request_location_update' || req.body.message === 'request_location_updates') {
+      if (
+        req.body.message === 'request_location_update' ||
+        req.body.message === 'request_location_updates'
+      ) {
         addCommand('request_location_update');
       } else if (req.body.message === 'clear_badge') {
         payload.notification = {};
@@ -93,9 +96,8 @@ module.exports = {
       } else {
         let needsCategory = false;
         let needsMutableContent = false;
-        
-        if (req.body.data) {
 
+        if (req.body.data) {
           if (req.body.data.subtitle) {
             payload.apns.payload.aps.alert.subtitle = req.body.data.subtitle;
           }
@@ -115,13 +117,20 @@ module.exports = {
             payload.apns.payload.aps.sound = req.body.data.push.sound;
           }
 
-          if (typeof req.body.registration_info.os_version === 'string'
-            && req.body.registration_info.os_version.startsWith('10.15')) {
+          if (
+            typeof req.body.registration_info.os_version === 'string' &&
+            req.body.registration_info.os_version.startsWith('10.15')
+          ) {
             const soundType = typeof payload.apns.payload.aps.sound;
             if (soundType === 'string') {
               payload.apns.payload.aps.sound = path.parse(payload.apns.payload.aps.sound).name;
-            } else if (soundType === 'object' && typeof payload.apns.payload.aps.sound.name === 'string') {
-              payload.apns.payload.aps.sound.name = path.parse(payload.apns.payload.aps.sound.name).name;
+            } else if (
+              soundType === 'object' &&
+              typeof payload.apns.payload.aps.sound.name === 'string'
+            ) {
+              payload.apns.payload.aps.sound.name = path.parse(
+                payload.apns.payload.aps.sound.name,
+              ).name;
             }
           }
 
@@ -157,12 +166,12 @@ module.exports = {
 
             if (!payload.apns.payload.attachment.url) {
               payload.apns.payload.attachment.url = url;
-            }       
+            }
 
             needsCategory = true;
             needsMutableContent = true;
           };
-            
+
           addAttachment(req.body.data.video, 'mpeg4');
           addAttachment(req.body.data.image, 'jpeg');
           addAttachment(req.body.data.audio, 'waveformaudio');
@@ -242,5 +251,5 @@ module.exports = {
     }
 
     return { updateRateLimits, payload };
-  }
+  },
 };

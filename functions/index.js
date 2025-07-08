@@ -17,30 +17,31 @@ const messaging = getMessaging();
 const logging = new Logging();
 
 const debug = isDebug();
-const MAX_NOTIFICATIONS_PER_DAY = 500;
+const MAX_NOTIFICATIONS_PER_DAY = parseInt(process.env.MAX_NOTIFICATIONS_PER_DAY || '500');
 
-const region = functions.config().app && functions.config().app.region || "us-central1";
+const region = (functions.config().app && functions.config().app.region) || 'us-central1';
 const regionalFunctions = functions.region(region).runWith({ timeoutSeconds: 10 });
 
-exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) => 
-  handleRequest(req, res, android.createPayload)
+exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) =>
+  handleRequest(req, res, android.createPayload),
 );
 
-exports.iOSV1 = regionalFunctions.https.onRequest(async (req, res) => 
-  handleRequest(req, res, ios.createPayload)
+exports.iOSV1 = regionalFunctions.https.onRequest(async (req, res) =>
+  handleRequest(req, res, ios.createPayload),
 );
 
-exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) => 
-  handleRequest(req, res, legacy.createPayload)
+exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) =>
+  handleRequest(req, res, legacy.createPayload),
 );
 
 exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => {
   const { push_token: token } = req.body;
   if (!token) {
-    return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
+    return res.status(403).send({ errorMessage: 'You did not send a token!' });
   }
-  if (token.indexOf(':') === -1) { // A check for old SNS tokens
-    return res.status(403).send({ 'errorMessage': 'That is not a valid FCM token' });
+  if (token.indexOf(':') === -1) {
+    // A check for old SNS tokens
+    return res.status(403).send({ errorMessage: 'That is not a valid FCM token' });
   }
 
   try {
@@ -56,13 +57,18 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
 });
 
 async function handleRequest(req, res, payloadHandler) {
-  if (debug) functions.logger.info('Handling request', { requestBody: JSON.stringify(req.body) });
+  if (debug) {
+    functions.logger.info('Handling request', {
+      requestBody: JSON.stringify(req.body),
+    });
+  }
   const { push_token: token } = req.body;
   if (!token) {
-    return res.status(403).send({ 'errorMessage': 'You did not send a token!' });
+    return res.status(403).send({ errorMessage: 'You did not send a token!' });
   }
-  if (token.indexOf(':') === -1) { // A check for old SNS tokens
-    return res.status(403).send({'errorMessage': 'That is not a valid FCM token'});
+  if (token.indexOf(':') === -1) {
+    // A check for old SNS tokens
+    return res.status(403).send({ errorMessage: 'That is not a valid FCM token' });
   }
 
   const { updateRateLimits, payload } = payloadHandler(req);
@@ -71,7 +77,7 @@ async function handleRequest(req, res, payloadHandler) {
 
   // Create a rate limiter instance for this request
   const rateLimiter = new RateLimiter(token, MAX_NOTIFICATIONS_PER_DAY, debug);
-  
+
   let rateLimitInfo;
   try {
     rateLimitInfo = await rateLimiter.checkRateLimit();
@@ -82,7 +88,7 @@ async function handleRequest(req, res, payloadHandler) {
   if (updateRateLimits) {
     // Increment attempts count
     const attemptInfo = await rateLimiter.recordAttempt();
-    
+
     if (attemptInfo.shouldSendRateLimitNotification) {
       try {
         await sendRateLimitedNotification(token);
@@ -94,14 +100,19 @@ async function handleRequest(req, res, payloadHandler) {
     if (attemptInfo.isRateLimited) {
       return res.status(429).send({
         errorType: 'RateLimited',
-        message: 'The given target has reached the maximum number of notifications allowed per day. Please try again later.',
+        message:
+          'The given target has reached the maximum number of notifications allowed per day. Please try again later.',
         target: token,
         rateLimits: attemptInfo.rateLimits,
       });
     }
   }
 
-  if (debug) functions.logger.info('Sending notification', { notification: JSON.stringify(payload) });
+  if (debug) {
+    functions.logger.info('Sending notification', {
+      notification: JSON.stringify(payload),
+    });
+  }
 
   let messageId;
   let rateLimits;
@@ -119,7 +130,12 @@ async function handleRequest(req, res, payloadHandler) {
     return handleError(req, res, payload, 'sendNotification', err);
   }
 
-  if (debug) functions.logger.info('Successfully sent notification', { messageId: messageId, notification: JSON.stringify(payload) });
+  if (debug) {
+    functions.logger.info('Successfully sent notification', {
+      messageId: messageId,
+      notification: JSON.stringify(payload),
+    });
+  }
 
   if (!updateRateLimits && debug) {
     functions.logger.info('Not updating rate limits because notification is critical or command');
@@ -131,17 +147,15 @@ async function handleRequest(req, res, payloadHandler) {
     target: token,
     rateLimits: rateLimits,
   });
-
 }
 
 function isDebug() {
   let conf = functions.config();
-  if (conf.debug){
+  if (conf.debug) {
     return conf.debug.local === 'true';
   }
   return false;
 }
-
 
 function handleError(req, res, payload = {}, step, incomingError, shouldExit = true) {
   if (!incomingError) {
@@ -149,12 +163,17 @@ function handleError(req, res, payload = {}, step, incomingError, shouldExit = t
   }
 
   if (!(incomingError instanceof Error)) {
-    functions.logger.warn('incomingError is not instanceof Error, its constructor.name is', incomingError.constructor.name);
+    functions.logger.warn(
+      'incomingError is not instanceof Error, its constructor.name is',
+      incomingError.constructor.name,
+    );
     incomingError = new Error(incomingError);
   }
 
   return reportError(incomingError, step, req, payload).then(() => {
-    if (!shouldExit) { return true; }
+    if (!shouldExit) {
+      return true;
+    }
 
     return res.status(500).send({
       errorType: 'InternalError',
@@ -171,7 +190,7 @@ function reportError(err, step, req, notificationObj) {
   const labels = {
     step,
     requestBody: JSON.stringify(req.body),
-    notification: JSON.stringify(notificationObj)
+    notification: JSON.stringify(notificationObj),
   };
 
   if (req.body.registration_info) {
@@ -189,11 +208,11 @@ function reportError(err, step, req, notificationObj) {
         // Use region from Cloud Function config as process.env.FIREBASE_CONFIG.locationId only has the project's multi-region location, e.g. us-central or europe-west, and we need a complete Google Cloud location, e.g. us-central1 or europe-west1, to invoke Google Cloud Logging API.
         // See https://firebase.google.com/docs/projects/locations#location-mr
         // and https://firebase.google.com/docs/functions/locations#selecting-regions_firestore-storage
-        region
-      }
+        region,
+      },
     },
     severity: 'ERROR',
-    labels
+    labels,
   };
 
   // https://cloud.google.com/error-reporting/reference/rest/v1beta1/ErrorEvent
@@ -209,9 +228,9 @@ function reportError(err, step, req, notificationObj) {
         method: req.method,
         url: req.originalUrl,
         userAgent: req.get('user-agent'),
-        remoteIp: req.ip
+        remoteIp: req.ip,
       },
-      user: req.body.push_token
+      user: req.body.push_token,
     },
   };
 
@@ -226,7 +245,6 @@ function reportError(err, step, req, notificationObj) {
   });
 }
 
-
 async function sendRateLimitedNotification(token) {
   const d = new Date();
   const strMax = String(MAX_NOTIFICATIONS_PER_DAY);
@@ -234,7 +252,7 @@ async function sendRateLimitedNotification(token) {
     token: token,
     notification: {
       title: 'Notifications Rate Limited',
-      body: `You have now sent more than ${MAX_NOTIFICATIONS_PER_DAY} notifications today. You will not receive new notifications until midnight UTC.`
+      body: `You have now sent more than ${MAX_NOTIFICATIONS_PER_DAY} notifications today. You will not receive new notifications until midnight UTC.`,
     },
     data: {
       rateLimited: 'true',
@@ -244,26 +262,29 @@ async function sendRateLimitedNotification(token) {
     android: {
       notification: {
         body_loc_args: [strMax],
-        body_loc_key: "rate_limit_notification.body",
-        title_loc_key: "rate_limit_notification.title",
-      }
+        body_loc_key: 'rate_limit_notification.body',
+        title_loc_key: 'rate_limit_notification.title',
+      },
     },
     apns: {
       payload: {
         aps: {
           alert: {
             'loc-args': [strMax],
-            'loc-key': "rate_limit_notification.body",
-            'title-loc-key': "rate_limit_notification.title",
-          }
-        }
-      }
+            'loc-key': 'rate_limit_notification.body',
+            'title-loc-key': 'rate_limit_notification.title',
+          },
+        },
+      },
     },
     fcm_options: {
-      analytics_label: "rateLimitNotification"
-    }
+      analytics_label: 'rateLimitNotification',
+    },
   };
-  if (debug) functions.logger.info('Sending rate limit notification', { notification: JSON.stringify(payload) });
+  if (debug)
+    functions.logger.info('Sending rate limit notification', {
+      notification: JSON.stringify(payload),
+    });
   return messaging.send(payload);
 }
 
