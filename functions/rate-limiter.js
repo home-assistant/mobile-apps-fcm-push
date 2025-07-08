@@ -3,6 +3,8 @@
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const functions = require('firebase-functions');
 
+const TWENTY_FOUR_HOURS_IN_MS = 86400000;
+
 /**
  * @typedef {Object} RateLimits
  * @property {number} attempts - Total number of attempts made
@@ -65,7 +67,7 @@ class RateLimiter {
   async _ensureLoaded() {
     if (this._loaded) return;
 
-    const today = this._getToday();
+    const today = getToday();
     this._ref = this.db.collection('rateLimits').doc(today).collection('tokens').doc(this.token);
 
     this._docData = {
@@ -73,7 +75,7 @@ class RateLimiter {
       deliveredCount: 0,
       errorCount: 0,
       totalCount: 0,
-      expiresAt: this._getFirestoreTimestamp(),
+      expiresAt: getFirestoreTimestamp(),
     };
 
     const currentDoc = await this._ref.get();
@@ -190,33 +192,6 @@ class RateLimiter {
   }
 
   /**
-   * Gets today's date in YYYYMMDD format for use as a Firestore document ID.
-   *
-   * @private
-   * @returns {string} Today's date as YYYYMMDD
-   */
-  _getToday() {
-    const today = new Date();
-    const dd = String(today.getDate()).padStart(2, '0');
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const yyyy = today.getFullYear();
-    return yyyy + mm + dd;
-  }
-
-  /**
-   * Creates a Firestore timestamp for the end of the current day (midnight).
-   * Used to set document expiration times.
-   *
-   * @private
-   * @returns {FirebaseFirestore.Timestamp} Timestamp for end of current day
-   */
-  _getFirestoreTimestamp() {
-    const now = new Date().getTime();
-    const endDate = new Date(now - (now % 86400000) + 86400000);
-    return Timestamp.fromDate(endDate);
-  }
-
-  /**
    * Converts internal rate limit data to a user-friendly format.
    *
    * @private
@@ -238,6 +213,34 @@ class RateLimiter {
       resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1),
     };
   }
+}
+
+/**
+ * Gets today's date in YYYYMMDD format for use as a Firestore document ID.
+ *
+ * @private
+ * @returns {string} Today's date as YYYYMMDD
+ */
+function getToday() {
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  return yyyy + mm + dd;
+}
+
+
+/**
+ * Creates a Firestore timestamp for the end of the current day (midnight).
+ * Used to set document expiration times.
+ *
+ * @private
+ * @returns {FirebaseFirestore.Timestamp} Timestamp for end of current day
+ */
+function getFirestoreTimestamp() {
+  const now = new Date().getTime();
+  const endDate = new Date(now - (now % TWENTY_FOUR_HOURS_IN_MS) + TWENTY_FOUR_HOURS_IN_MS);
+  return Timestamp.fromDate(endDate);
 }
 
 module.exports = RateLimiter;
