@@ -5,6 +5,8 @@ const functions = require('firebase-functions');
 
 const TWENTY_FOUR_HOURS_IN_MS = 86400000;
 
+const db = getFirestore();
+
 /**
  * @typedef {Object} RateLimits
  * @property {number} attempts - Total number of attempts made
@@ -46,7 +48,7 @@ class RateLimiter {
    */
   constructor(token, maxNotificationsPerDay, debug = false) {
     this.token = token;
-    this.db = getFirestore();
+    this.db = db;
     this.maxNotificationsPerDay = maxNotificationsPerDay;
     this.debug = debug;
 
