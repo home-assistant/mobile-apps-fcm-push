@@ -1,7 +1,7 @@
 const assert = require('assert');
 const sinon = require('sinon');
 
-describe('handleRequest', function() {
+describe('handleRequest', function () {
   let indexModule;
   let req, res, payloadHandler;
   let firestoreStub, messagingStub, functionsStub;
@@ -17,44 +17,44 @@ describe('handleRequest', function() {
         registration_info: {
           app_id: 'com.test.app',
           app_version: '1.0.0',
-          os_version: '14.0'
-        }
+          os_version: '14.0',
+        },
       },
       method: 'POST',
       originalUrl: '/test',
       get: sinon.stub().returns('test-user-agent'),
-      ip: '127.0.0.1'
+      ip: '127.0.0.1',
     };
   }
 
-  before(function() {
+  before(function () {
     // Set up core stubs that will be used throughout
     messagingStub = {
-      send: sinon.stub()
+      send: sinon.stub(),
     };
 
     firestoreStub = {
-      collection: sinon.stub()
+      collection: sinon.stub(),
     };
 
     functionsStub = {
       config: sinon.stub().returns({}),
       logger: {
         info: sinon.stub(),
-        warn: sinon.stub()
+        warn: sinon.stub(),
       },
       region: sinon.stub().returnsThis(),
       runWith: sinon.stub().returnsThis(),
       https: {
-        onRequest: sinon.stub()
-      }
+        onRequest: sinon.stub(),
+      },
     };
 
     const loggingStub = {
       log: sinon.stub().returns({
         write: sinon.stub().callsArg(1), // Call the callback with no error
-        entry: sinon.stub().returns({})
-      })
+        entry: sinon.stub().returns({}),
+      }),
     };
 
     // Mock all Firebase dependencies
@@ -62,11 +62,11 @@ describe('handleRequest', function() {
     mockRequire('firebase-functions', functionsStub);
     mockRequire('@google-cloud/logging', { Logging: sinon.stub().returns(loggingStub) });
     mockRequire('firebase-admin/app', { initializeApp: sinon.stub() });
-    mockRequire('firebase-admin/firestore', { 
+    mockRequire('firebase-admin/firestore', {
       getFirestore: sinon.stub().returns(firestoreStub),
       Timestamp: {
-        fromDate: sinon.stub().returns('mock-timestamp')
-      }
+        fromDate: sinon.stub().returns('mock-timestamp'),
+      },
     });
     mockRequire('firebase-admin/messaging', { getMessaging: sinon.stub().returns(messagingStub) });
 
@@ -74,7 +74,7 @@ describe('handleRequest', function() {
     indexModule = require('../index.js');
   });
 
-  beforeEach(function() {
+  beforeEach(function () {
     // Reset messaging stub
     messagingStub.send.reset();
     messagingStub.send.resolves('mock-message-id');
@@ -84,14 +84,14 @@ describe('handleRequest', function() {
 
     res = {
       status: sinon.stub().returnsThis(),
-      send: sinon.stub()
+      send: sinon.stub(),
     };
 
     payloadHandler = sinon.stub().returns({
       updateRateLimits: true,
       payload: {
-        notification: { body: 'Test message' }
-      }
+        notification: { body: 'Test message' },
+      },
     });
 
     // Set up Firestore document mocks
@@ -101,35 +101,35 @@ describe('handleRequest', function() {
         attemptsCount: 0,
         deliveredCount: 0,
         errorCount: 0,
-        totalCount: 0
-      })
+        totalCount: 0,
+      }),
     };
 
     docRef = {
       get: sinon.stub().resolves(docSnapshot),
       set: sinon.stub().resolves(),
-      update: sinon.stub().resolves()
+      update: sinon.stub().resolves(),
     };
 
     // Set up Firestore collection chain
     const collectionRef = {
-      doc: sinon.stub().returns(docRef)
+      doc: sinon.stub().returns(docRef),
     };
 
     const dateRef = {
-      collection: sinon.stub().returns(collectionRef)
+      collection: sinon.stub().returns(collectionRef),
     };
 
     firestoreStub.collection.returns({
-      doc: sinon.stub().returns(dateRef)
+      doc: sinon.stub().returns(dateRef),
     });
   });
 
-  after(function() {
+  after(function () {
     require('mock-require').stopAll();
   });
 
-  it('should handle successful notification send and create new doc', async function() {
+  it('should handle successful notification send and create new doc', async function () {
     await indexModule.handleRequest(req, res, payloadHandler);
 
     // Verify payload handler was called
@@ -157,14 +157,14 @@ describe('handleRequest', function() {
     assert(responseData.rateLimits, 'Should include rate limits');
   });
 
-  it('should handle successful notification send and update existing doc', async function() {
+  it('should handle successful notification send and update existing doc', async function () {
     // Set up existing document
     docSnapshot.exists = true;
     docSnapshot.data.returns({
       attemptsCount: 10,
       deliveredCount: 5,
       errorCount: 2,
-      totalCount: 7
+      totalCount: 7,
     });
 
     await indexModule.handleRequest(req, res, payloadHandler);
@@ -172,7 +172,7 @@ describe('handleRequest', function() {
     // Verify Firestore doc was updated
     assert(docRef.update.calledOnce, 'doc.update should be called for existing document');
     assert(docRef.set.notCalled, 'doc.set should not be called for existing document');
-    
+
     const updatedData = docRef.update.firstCall.args[0];
     assert.equal(updatedData.attemptsCount, 11, 'Attempts count should be incremented');
     assert.equal(updatedData.deliveredCount, 6, 'Delivered count should be incremented');
@@ -183,7 +183,7 @@ describe('handleRequest', function() {
     assert(res.status.calledWith(201), 'Should return 201 status');
   });
 
-  it('should handle notification send failure and update error count', async function() {
+  it('should handle notification send failure and update error count', async function () {
     // Make messaging.send fail
     messagingStub.send.rejects(new Error('FCM send failed'));
 
@@ -201,23 +201,30 @@ describe('handleRequest', function() {
     assert(res.status.calledWith(500), 'Should return 500 status for send failure');
     const responseData = res.send.firstCall.args[0];
     assert.equal(responseData.errorType, 'InternalError', 'Should return internal error');
-    assert.equal(responseData.errorStep, 'sendNotification', 'Should indicate send notification step');
+    assert.equal(
+      responseData.errorStep,
+      'sendNotification',
+      'Should indicate send notification step',
+    );
   });
 
-  it('should reject notifications over rate limit', async function() {
+  it('should reject notifications over rate limit', async function () {
     // Set up doc over rate limit
     docSnapshot.exists = true;
     docSnapshot.data.returns({
       attemptsCount: 501,
       deliveredCount: 501, // Over MAX_NOTIFICATIONS_PER_DAY (500)
       errorCount: 0,
-      totalCount: 501
+      totalCount: 501,
     });
 
     await indexModule.handleRequest(req, res, payloadHandler);
 
     // Verify notification was not sent (only rate limit doc update)
-    assert(messagingStub.send.notCalled, 'messaging.send should not be called when over rate limit');
+    assert(
+      messagingStub.send.notCalled,
+      'messaging.send should not be called when over rate limit',
+    );
 
     // Verify doc was still updated with attempt
     assert(docRef.update.calledOnce, 'doc.update should be called');
@@ -229,16 +236,19 @@ describe('handleRequest', function() {
     assert(res.status.calledWith(429), 'Should return 429 status for rate limit');
     const responseData = res.send.firstCall.args[0];
     assert.equal(responseData.errorType, 'RateLimited', 'Should return rate limited error');
-    assert(responseData.message.includes('maximum number of notifications'), 'Should include rate limit message');
+    assert(
+      responseData.message.includes('maximum number of notifications'),
+      'Should include rate limit message',
+    );
   });
 
-  it('should not update rate limits for critical notifications', async function() {
+  it('should not update rate limits for critical notifications', async function () {
     // Set payload handler to return updateRateLimits: false
     payloadHandler.returns({
       updateRateLimits: false,
       payload: {
-        notification: { body: 'Critical message' }
-      }
+        notification: { body: 'Critical message' },
+      },
     });
 
     await indexModule.handleRequest(req, res, payloadHandler);
@@ -256,7 +266,7 @@ describe('handleRequest', function() {
     assert(responseData.rateLimits, 'Should still include rate limits in response');
   });
 
-  it('should handle invalid token format', async function() {
+  it('should handle invalid token format', async function () {
     const testReq = createMockRequest();
     testReq.body.push_token = 'invalid-token-without-colon';
 
@@ -272,7 +282,7 @@ describe('handleRequest', function() {
     assert(docRef.get.notCalled, 'Firestore should not be accessed');
   });
 
-  it('should handle missing token', async function() {
+  it('should handle missing token', async function () {
     const testReq = createMockRequest();
     delete testReq.body.push_token;
 
@@ -288,7 +298,7 @@ describe('handleRequest', function() {
     assert(docRef.get.notCalled, 'Firestore should not be accessed');
   });
 
-  it('should handle Firestore read errors', async function() {
+  it('should handle Firestore read errors', async function () {
     // Make Firestore get fail
     docRef.get.rejects(new Error('Firestore read failed'));
 
