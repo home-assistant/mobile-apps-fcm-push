@@ -5,12 +5,14 @@ const functions = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
 const { getMessaging } = require('firebase-admin/messaging');
 
+// We need to initialize the app before importing modules that want Firestore.
+initializeApp();
+
 const android = require('./android');
 const ios = require('./ios');
 const legacy = require('./legacy');
 const RateLimiter = require('./rate-limiter');
 
-initializeApp();
 
 const messaging = getMessaging();
 
