@@ -1,10 +1,55 @@
-const assert = require('assert');
-const sinon = require('sinon');
+'use strict';
 
-describe('handleRequest', function () {
-  let indexModule;
+// Mock Firebase Admin and other dependencies
+const mockMessaging = {
+  send: jest.fn(),
+};
+
+const mockFirestore = {
+  collection: jest.fn(),
+};
+
+const mockFunctions = {
+  config: jest.fn(() => ({})),
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+  },
+  region: jest.fn().mockReturnThis(),
+  runWith: jest.fn().mockReturnThis(),
+  https: {
+    onRequest: jest.fn(),
+  },
+};
+
+const mockLogging = {
+  log: jest.fn(() => ({
+    write: jest.fn((entry, callback) => callback()),
+    entry: jest.fn(() => ({})),
+  })),
+};
+
+jest.mock('firebase-functions', () => mockFunctions);
+jest.mock('@google-cloud/logging', () => ({
+  Logging: jest.fn(() => mockLogging),
+}));
+jest.mock('firebase-admin/app', () => ({
+  initializeApp: jest.fn(),
+}));
+jest.mock('firebase-admin/firestore', () => ({
+  getFirestore: jest.fn(() => mockFirestore),
+  Timestamp: {
+    fromDate: jest.fn(() => 'mock-timestamp'),
+  },
+}));
+jest.mock('firebase-admin/messaging', () => ({
+  getMessaging: jest.fn(() => mockMessaging),
+}));
+
+const indexModule = require('../index.js');
+
+describe('handleRequest', () => {
   let req, res, payloadHandler;
-  let firestoreStub, messagingStub, functionsStub;
   let docRef, docSnapshot;
 
   // Factory function to create fresh request objects for each test
@@ -22,145 +67,98 @@ describe('handleRequest', function () {
       },
       method: 'POST',
       originalUrl: '/test',
-      get: sinon.stub().returns('test-user-agent'),
+      get: jest.fn(() => 'test-user-agent'),
       ip: '127.0.0.1',
     };
   }
 
-  before(function () {
-    // Set up core stubs that will be used throughout
-    messagingStub = {
-      send: sinon.stub(),
-    };
+  beforeEach(() => {
+    // Reset all mocks
+    jest.clearAllMocks();
 
-    firestoreStub = {
-      collection: sinon.stub(),
-    };
-
-    functionsStub = {
-      config: sinon.stub().returns({}),
-      logger: {
-        info: sinon.stub(),
-        warn: sinon.stub(),
-      },
-      region: sinon.stub().returnsThis(),
-      runWith: sinon.stub().returnsThis(),
-      https: {
-        onRequest: sinon.stub(),
-      },
-    };
-
-    const loggingStub = {
-      log: sinon.stub().returns({
-        write: sinon.stub().callsArg(1), // Call the callback with no error
-        entry: sinon.stub().returns({}),
-      }),
-    };
-
-    // Mock all Firebase dependencies
-    const mockRequire = require('mock-require');
-    mockRequire('firebase-functions', functionsStub);
-    mockRequire('@google-cloud/logging', { Logging: sinon.stub().returns(loggingStub) });
-    mockRequire('firebase-admin/app', { initializeApp: sinon.stub() });
-    mockRequire('firebase-admin/firestore', {
-      getFirestore: sinon.stub().returns(firestoreStub),
-      Timestamp: {
-        fromDate: sinon.stub().returns('mock-timestamp'),
-      },
-    });
-    mockRequire('firebase-admin/messaging', { getMessaging: sinon.stub().returns(messagingStub) });
-
-    // Require the index module after mocking
-    indexModule = require('../index.js');
-  });
-
-  beforeEach(function () {
     // Reset messaging stub
-    messagingStub.send.reset();
-    messagingStub.send.resolves('mock-message-id');
+    mockMessaging.send.mockResolvedValue('mock-message-id');
 
-    // Set up request and response mock objects - using a factory function to avoid mutations
+    // Set up request and response mock objects
     req = createMockRequest();
 
     res = {
-      status: sinon.stub().returnsThis(),
-      send: sinon.stub(),
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn(),
     };
 
-    payloadHandler = sinon.stub().returns({
+    payloadHandler = jest.fn(() => ({
       updateRateLimits: true,
       payload: {
         notification: { body: 'Test message' },
       },
-    });
+    }));
 
     // Set up Firestore document mocks
     docSnapshot = {
       exists: false,
-      data: sinon.stub().returns({
+      data: jest.fn(() => ({
         attemptsCount: 0,
         deliveredCount: 0,
         errorCount: 0,
         totalCount: 0,
-      }),
+      })),
     };
 
     docRef = {
-      get: sinon.stub().resolves(docSnapshot),
-      set: sinon.stub().resolves(),
-      update: sinon.stub().resolves(),
+      get: jest.fn().mockResolvedValue(docSnapshot),
+      set: jest.fn().mockResolvedValue(),
+      update: jest.fn().mockResolvedValue(),
     };
 
     // Set up Firestore collection chain
     const collectionRef = {
-      doc: sinon.stub().returns(docRef),
+      doc: jest.fn(() => docRef),
     };
 
     const dateRef = {
-      collection: sinon.stub().returns(collectionRef),
+      collection: jest.fn(() => collectionRef),
     };
 
-    firestoreStub.collection.returns({
-      doc: sinon.stub().returns(dateRef),
+    mockFirestore.collection.mockReturnValue({
+      doc: jest.fn(() => dateRef),
     });
   });
 
-  after(function () {
-    require('mock-require').stopAll();
-  });
-
-  it('should handle successful notification send and create new doc', async function () {
+  test('should handle successful notification send and create new doc', async () => {
     await indexModule.handleRequest(req, res, payloadHandler);
 
     // Verify payload handler was called
-    assert(payloadHandler.calledOnce, 'Payload handler should be called once');
-    assert(payloadHandler.calledWith(req), 'Payload handler should be called with request');
+    expect(payloadHandler).toHaveBeenCalledTimes(1);
+    expect(payloadHandler).toHaveBeenCalledWith(req);
 
     // Verify messaging.send was called
-    assert(messagingStub.send.calledOnce, 'messaging.send should be called once');
-    const sentPayload = messagingStub.send.firstCall.args[0];
-    assert.equal(sentPayload.token, 'test:token123', 'Token should be added to payload');
+    expect(mockMessaging.send).toHaveBeenCalledTimes(1);
+    const sentPayload = mockMessaging.send.mock.calls[0][0];
+    expect(sentPayload.token).toBe('test:token123');
 
     // Verify Firestore doc was created
-    assert(docRef.set.calledOnce, 'doc.set should be called for new document');
-    const savedData = docRef.set.firstCall.args[0];
-    assert.equal(savedData.attemptsCount, 1, 'Attempts count should be 1');
-    assert.equal(savedData.deliveredCount, 1, 'Delivered count should be 1');
-    assert.equal(savedData.totalCount, 1, 'Total count should be 1');
-    assert.equal(savedData.errorCount, 0, 'Error count should be 0');
+    expect(docRef.set).toHaveBeenCalledTimes(1);
+    expect(docRef.update).not.toHaveBeenCalled();
+    
+    const savedData = docRef.set.mock.calls[0][0];
+    expect(savedData.attemptsCount).toBe(1);
+    expect(savedData.deliveredCount).toBe(1);
+    expect(savedData.totalCount).toBe(1);
+    expect(savedData.errorCount).toBe(0);
 
     // Verify successful response
-    assert(res.status.calledWith(201), 'Should return 201 status');
-    const responseData = res.send.firstCall.args[0];
-    assert.equal(responseData.messageId, 'mock-message-id', 'Should return message ID');
-    assert.equal(responseData.target, 'test:token123', 'Should return target token');
-    assert(responseData.rateLimits, 'Should include rate limits');
+    expect(res.status).toHaveBeenCalledWith(201);
+    const responseData = res.send.mock.calls[0][0];
+    expect(responseData.messageId).toBe('mock-message-id');
+    expect(responseData.target).toBe('test:token123');
+    expect(responseData.rateLimits).toBeDefined();
   });
 
-  it('should handle successful notification send and update existing doc', async function () {
+  test('should handle successful notification send and update existing doc', async () => {
     // Set up existing document
     docSnapshot.exists = true;
-    docSnapshot.data.returns({
+    docSnapshot.data.mockReturnValue({
       attemptsCount: 10,
       deliveredCount: 5,
       errorCount: 2,
@@ -170,48 +168,44 @@ describe('handleRequest', function () {
     await indexModule.handleRequest(req, res, payloadHandler);
 
     // Verify Firestore doc was updated
-    assert(docRef.update.calledOnce, 'doc.update should be called for existing document');
-    assert(docRef.set.notCalled, 'doc.set should not be called for existing document');
+    expect(docRef.update).toHaveBeenCalledTimes(1);
+    expect(docRef.set).not.toHaveBeenCalled();
 
-    const updatedData = docRef.update.firstCall.args[0];
-    assert.equal(updatedData.attemptsCount, 11, 'Attempts count should be incremented');
-    assert.equal(updatedData.deliveredCount, 6, 'Delivered count should be incremented');
-    assert.equal(updatedData.totalCount, 8, 'Total count should be incremented');
-    assert.equal(updatedData.errorCount, 2, 'Error count should remain the same');
+    const updatedData = docRef.update.mock.calls[0][0];
+    expect(updatedData.attemptsCount).toBe(11);
+    expect(updatedData.deliveredCount).toBe(6);
+    expect(updatedData.totalCount).toBe(8);
+    expect(updatedData.errorCount).toBe(2);
 
     // Verify response
-    assert(res.status.calledWith(201), 'Should return 201 status');
+    expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  it('should handle notification send failure and update error count', async function () {
+  test('should handle notification send failure and update error count', async () => {
     // Make messaging.send fail
-    messagingStub.send.rejects(new Error('FCM send failed'));
+    mockMessaging.send.mockRejectedValue(new Error('FCM send failed'));
 
     await indexModule.handleRequest(req, res, payloadHandler);
 
     // Verify Firestore doc was created with error count
-    assert(docRef.set.calledOnce, 'doc.set should be called');
-    const savedData = docRef.set.firstCall.args[0];
-    assert.equal(savedData.attemptsCount, 1, 'Attempts count should be 1');
-    assert.equal(savedData.deliveredCount, 0, 'Delivered count should be 0');
-    assert.equal(savedData.errorCount, 1, 'Error count should be 1');
-    assert.equal(savedData.totalCount, 1, 'Total count should be 1');
+    expect(docRef.set).toHaveBeenCalledTimes(1);
+    const savedData = docRef.set.mock.calls[0][0];
+    expect(savedData.attemptsCount).toBe(1);
+    expect(savedData.deliveredCount).toBe(0);
+    expect(savedData.errorCount).toBe(1);
+    expect(savedData.totalCount).toBe(1);
 
     // Verify error response
-    assert(res.status.calledWith(500), 'Should return 500 status for send failure');
-    const responseData = res.send.firstCall.args[0];
-    assert.equal(responseData.errorType, 'InternalError', 'Should return internal error');
-    assert.equal(
-      responseData.errorStep,
-      'sendNotification',
-      'Should indicate send notification step',
-    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    const responseData = res.send.mock.calls[0][0];
+    expect(responseData.errorType).toBe('InternalError');
+    expect(responseData.errorStep).toBe('sendNotification');
   });
 
-  it('should reject notifications over rate limit', async function () {
+  test('should reject notifications over rate limit', async () => {
     // Set up doc over rate limit
     docSnapshot.exists = true;
-    docSnapshot.data.returns({
+    docSnapshot.data.mockReturnValue({
       attemptsCount: 501,
       deliveredCount: 501, // Over MAX_NOTIFICATIONS_PER_DAY (500)
       errorCount: 0,
@@ -221,30 +215,24 @@ describe('handleRequest', function () {
     await indexModule.handleRequest(req, res, payloadHandler);
 
     // Verify notification was not sent (only rate limit doc update)
-    assert(
-      messagingStub.send.notCalled,
-      'messaging.send should not be called when over rate limit',
-    );
+    expect(mockMessaging.send).not.toHaveBeenCalled();
 
     // Verify doc was still updated with attempt
-    assert(docRef.update.calledOnce, 'doc.update should be called');
-    const updatedData = docRef.update.firstCall.args[0];
-    assert.equal(updatedData.attemptsCount, 502, 'Attempts count should be incremented');
-    assert.equal(updatedData.deliveredCount, 501, 'Delivered count should not be incremented');
+    expect(docRef.update).toHaveBeenCalledTimes(1);
+    const updatedData = docRef.update.mock.calls[0][0];
+    expect(updatedData.attemptsCount).toBe(502);
+    expect(updatedData.deliveredCount).toBe(501);
 
     // Verify rate limit response
-    assert(res.status.calledWith(429), 'Should return 429 status for rate limit');
-    const responseData = res.send.firstCall.args[0];
-    assert.equal(responseData.errorType, 'RateLimited', 'Should return rate limited error');
-    assert(
-      responseData.message.includes('maximum number of notifications'),
-      'Should include rate limit message',
-    );
+    expect(res.status).toHaveBeenCalledWith(429);
+    const responseData = res.send.mock.calls[0][0];
+    expect(responseData.errorType).toBe('RateLimited');
+    expect(responseData.message).toContain('maximum number of notifications');
   });
 
-  it('should not update rate limits for critical notifications', async function () {
+  test('should not update rate limits for critical notifications', async () => {
     // Set payload handler to return updateRateLimits: false
-    payloadHandler.returns({
+    payloadHandler.mockReturnValue({
       updateRateLimits: false,
       payload: {
         notification: { body: 'Critical message' },
@@ -254,60 +242,60 @@ describe('handleRequest', function () {
     await indexModule.handleRequest(req, res, payloadHandler);
 
     // Verify messaging.send was called
-    assert(messagingStub.send.calledOnce, 'messaging.send should be called');
+    expect(mockMessaging.send).toHaveBeenCalledTimes(1);
 
     // Verify Firestore doc was NOT updated for rate limits
-    assert(docRef.set.notCalled, 'doc.set should not be called for critical notifications');
-    assert(docRef.update.notCalled, 'doc.update should not be called for critical notifications');
+    expect(docRef.set).not.toHaveBeenCalled();
+    expect(docRef.update).not.toHaveBeenCalled();
 
     // Verify response still returns rate limit info
-    assert(res.status.calledWith(201), 'Should return 201 status');
-    const responseData = res.send.firstCall.args[0];
-    assert(responseData.rateLimits, 'Should still include rate limits in response');
+    expect(res.status).toHaveBeenCalledWith(201);
+    const responseData = res.send.mock.calls[0][0];
+    expect(responseData.rateLimits).toBeDefined();
   });
 
-  it('should handle invalid token format', async function () {
+  test('should handle invalid token format', async () => {
     const testReq = createMockRequest();
     testReq.body.push_token = 'invalid-token-without-colon';
 
     await indexModule.handleRequest(testReq, res, payloadHandler);
 
     // Verify error response
-    assert(res.status.calledWith(403), 'Should return 403 for invalid token');
-    const responseData = res.send.firstCall.args[0];
-    assert.equal(responseData.errorMessage, 'That is not a valid FCM token');
+    expect(res.status).toHaveBeenCalledWith(403);
+    const responseData = res.send.mock.calls[0][0];
+    expect(responseData.errorMessage).toBe('That is not a valid FCM token');
 
     // Verify nothing else was called
-    assert(messagingStub.send.notCalled, 'messaging.send should not be called');
-    assert(docRef.get.notCalled, 'Firestore should not be accessed');
+    expect(mockMessaging.send).not.toHaveBeenCalled();
+    expect(docRef.get).not.toHaveBeenCalled();
   });
 
-  it('should handle missing token', async function () {
+  test('should handle missing token', async () => {
     const testReq = createMockRequest();
     delete testReq.body.push_token;
 
     await indexModule.handleRequest(testReq, res, payloadHandler);
 
     // Verify error response
-    assert(res.status.calledWith(403), 'Should return 403 for missing token');
-    const responseData = res.send.firstCall.args[0];
-    assert.equal(responseData.errorMessage, 'You did not send a token!');
+    expect(res.status).toHaveBeenCalledWith(403);
+    const responseData = res.send.mock.calls[0][0];
+    expect(responseData.errorMessage).toBe('You did not send a token!');
 
     // Verify nothing else was called
-    assert(messagingStub.send.notCalled, 'messaging.send should not be called');
-    assert(docRef.get.notCalled, 'Firestore should not be accessed');
+    expect(mockMessaging.send).not.toHaveBeenCalled();
+    expect(docRef.get).not.toHaveBeenCalled();
   });
 
-  it('should handle Firestore read errors', async function () {
+  test('should handle Firestore read errors', async () => {
     // Make Firestore get fail
-    docRef.get.rejects(new Error('Firestore read failed'));
+    docRef.get.mockRejectedValue(new Error('Firestore read failed'));
 
     await indexModule.handleRequest(req, res, payloadHandler);
 
     // Verify error response
-    assert(res.status.calledWith(500), 'Should return 500 for Firestore error');
-    const responseData = res.send.firstCall.args[0];
-    assert.equal(responseData.errorType, 'InternalError');
-    assert.equal(responseData.errorStep, 'getRateLimitDoc');
+    expect(res.status).toHaveBeenCalledWith(500);
+    const responseData = res.send.mock.calls[0][0];
+    expect(responseData.errorType).toBe('InternalError');
+    expect(responseData.errorStep).toBe('getRateLimitDoc');
   });
 });
