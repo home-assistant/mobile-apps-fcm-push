@@ -140,7 +140,7 @@ describe('handleRequest', () => {
     // Verify Firestore doc was created
     expect(docRef.set).toHaveBeenCalledTimes(1);
     expect(docRef.update).not.toHaveBeenCalled();
-    
+
     const savedData = docRef.set.mock.calls[0][0];
     expect(savedData.attemptsCount).toBe(1);
     expect(savedData.deliveredCount).toBe(1);

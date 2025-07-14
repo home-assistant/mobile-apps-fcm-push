@@ -13,7 +13,6 @@ const ios = require('./ios');
 const legacy = require('./legacy');
 const RateLimiter = require('./rate-limiter');
 
-
 const messaging = getMessaging();
 
 const logging = new Logging();
