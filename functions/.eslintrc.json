@@ -4,8 +4,7 @@
     "ecmaVersion": 2017
   },
   "plugins": [
-    "promise",
-    "mocha"
+    "promise"
   ],
   "extends": "eslint:recommended",
   "rules": {
@@ -113,9 +112,7 @@
     "no-path-concat": 1,
 
     // Prefer using arrow functions for callbacks
-    // Mocha-specific override, because you lose `this` when using arrow callbacks
-    "prefer-arrow-callback": 0,
-    "mocha/prefer-arrow-callback": 2,
+    "prefer-arrow-callback": 2,
 
     // Return inside each then() to create readable and reusable Promise chains.
     // Forces developers to return console logs and http calls in promises.

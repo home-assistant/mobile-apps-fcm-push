@@ -59,7 +59,7 @@ describe('RateLimiter', () => {
         const subCollectionName = 'tokens';
         const key = `${collectionName}/${docId}/${subCollectionName}/${tokenId}`;
         return {
-          exists: !!mockData[key],
+          exists: Boolean(mockData[key]),
           data: () => mockData[key],
         };
       }),
@@ -135,10 +135,11 @@ describe('RateLimiter', () => {
       const rateLimiter = new RateLimiter(testToken, 5); // Low limit for testing
       
       // Send 5 successful notifications
+      const promises = [];
       for (let i = 0; i < 5; i++) {
-        await rateLimiter.recordAttempt();
-        await rateLimiter.recordSuccess();
+        promises.push(rateLimiter.recordAttempt().then(() => rateLimiter.recordSuccess()));
       }
+      await Promise.all(promises);
       
       // Check rate limit status after exactly reaching the limit
       let status = await rateLimiter.checkRateLimit();

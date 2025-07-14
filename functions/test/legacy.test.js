@@ -2,14 +2,14 @@ const fs = require('fs');
 const legacy = require('../legacy.js');
 var assert = require('assert');
 
-describe('legacy.js', function () {
+describe('legacy.js', () => {
   const fixturesDir = './test/fixtures/legacy/';
   fs.readdirSync(fixturesDir).forEach((file) => {
     if (!file.endsWith('.json')) {
       return;
     }
 
-    it(`should handle ${file}`, function (done) {
+    it(`should handle ${file}`, (done) => {
       fs.readFile(fixturesDir + file, 'utf8', (err, data) => {
         if (err) {
           done(err);
