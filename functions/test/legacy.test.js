@@ -11,37 +11,35 @@ describe('legacy.js', () => {
   const files = fs.readdirSync(fixturesDir);
   const jsonFiles = files.filter((file) => file.endsWith('.json'));
 
-  // Create a test for each fixture file
-  jsonFiles.forEach((file) => {
-    it(`should handle ${file}`, (done) => {
-      fs.readFile(fixturesDir + file, 'utf8', (err, data) => {
-        if (err) {
-          done(err);
-          return;
-        }
+  // Use it.each for parameterized tests with fixture files
+  it.each(jsonFiles)('should handle %s', (file, done) => {
+    fs.readFile(fixturesDir + file, 'utf8', (err, data) => {
+      if (err) {
+        done(err);
+        return;
+      }
 
-        const json = JSON.parse(data);
-        const input = json['input'];
-        const expected = {
-          payload: {
-            apns: {
-              headers: json['headers'],
-              payload: json['payload'],
-            },
+      const json = JSON.parse(data);
+      const input = json['input'];
+      const expected = {
+        payload: {
+          apns: {
+            headers: json['headers'],
+            payload: json['payload'],
           },
-          updateRateLimits: json['rate_limit'],
-        };
+        },
+        updateRateLimits: json['rate_limit'],
+      };
 
-        const result = legacy.createPayload({ body: input });
+      const result = legacy.createPayload({ body: input });
 
-        // Remove things that aren't worth copy/pasting between test cases
-        delete result['payload']['android'];
-        delete result['payload']['notification'];
-        delete result['payload']['fcm_options'];
+      // Remove things that aren't worth copy/pasting between test cases
+      delete result['payload']['android'];
+      delete result['payload']['notification'];
+      delete result['payload']['fcm_options'];
 
-        assert.deepStrictEqual(result, expected);
-        done();
-      });
+      assert.deepStrictEqual(result, expected);
+      done();
     });
   });
 
