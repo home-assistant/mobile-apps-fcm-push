@@ -1,6 +1,7 @@
 {
   "name": "home-assistant/mobile-apps-fcm-push",
   "image": "mcr.microsoft.com/devcontainers/base:noble",
+  "postCreateCommand": "bash -i -c 'cd functions && npm install'",
   "remoteEnv": {
     "PATH": "${containerEnv:PATH}:${containerWorkspaceFolder}/node_modules/.bin"
   },
@@ -32,6 +33,9 @@
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/node:1": {
       "version": "20"
+    },
+    "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
+      "packages": "python3-dev"
     }
   }
 }
