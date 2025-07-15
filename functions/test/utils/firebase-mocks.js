@@ -29,7 +29,7 @@ const setupFirebaseMocks = () => {
 
   const mockLogging = {
     log: jest.fn(() => ({
-      write: jest.fn((entry, callback) => callback()),
+      write: jest.fn((_, callback) => callback()),
       entry: jest.fn(() => ({})),
     })),
   };
@@ -65,7 +65,7 @@ const setupFirebaseMocks = () => {
 
 const resetAllMocks = (mocks) => {
   jest.clearAllMocks();
-  Object.values(mocks).forEach(mock => {
+  Object.values(mocks).forEach((mock) => {
     if (mock && typeof mock.mockReset === 'function') {
       mock.mockReset();
     }

@@ -146,20 +146,20 @@ const assertCalls = {
  * Combined assertion for successful request flow
  */
 const assertSuccessfulFlow = (mocks, expectedCounts) => {
-  const { mockMessaging, mockDocRef, mockRes } = mocks;
-  
+  const { mockMessaging, mockRes } = mocks;
+
   // Message should be sent
   assertMessaging.expectMessageSent(mockMessaging);
-  
+
   // Response should be successful
   const response = assertResponse.expectSuccessResponse(mockRes);
-  
+
   // Rate limits should be present
   expect(response.rateLimits).toBeDefined();
   if (expectedCounts) {
     assertRateLimits.expectRateLimitCounts(response.rateLimits, expectedCounts);
   }
-  
+
   return response;
 };
 
@@ -168,13 +168,13 @@ const assertSuccessfulFlow = (mocks, expectedCounts) => {
  */
 const assertRateLimitedFlow = (mocks, expectedToken) => {
   const { mockMessaging, mockRes } = mocks;
-  
+
   // No message should be sent
   assertMessaging.expectNoMessageSent(mockMessaging);
-  
+
   // Response should indicate rate limiting
   const response = assertResponse.expectRateLimitResponse(mockRes, expectedToken);
-  
+
   return response;
 };
 

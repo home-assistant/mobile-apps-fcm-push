@@ -7,24 +7,29 @@
 /**
  * Creates a mock request object
  */
-const createMockRequest = (overrides = {}) => ({
-  body: {
-    push_token: 'test:token123',
-    message: 'Test message',
-    title: 'Test title',
-    registration_info: {
-      app_id: 'com.test.app',
-      app_version: '1.0.0',
-      os_version: '14.0',
+const createMockRequest = (overrides = {}) =>
+  Object.assign(
+    {
+      body: Object.assign(
+        {
+          push_token: 'test:token123',
+          message: 'Test message',
+          title: 'Test title',
+          registration_info: {
+            app_id: 'com.test.app',
+            app_version: '1.0.0',
+            os_version: '14.0',
+          },
+        },
+        overrides.body || {},
+      ),
+      method: 'POST',
+      originalUrl: '/test',
+      get: jest.fn(() => 'test-user-agent'),
+      ip: '127.0.0.1',
     },
-    ...overrides.body,
-  },
-  method: 'POST',
-  originalUrl: '/test',
-  get: jest.fn(() => 'test-user-agent'),
-  ip: '127.0.0.1',
-  ...overrides,
-});
+    overrides,
+  );
 
 /**
  * Creates a mock response object
@@ -37,13 +42,18 @@ const createMockResponse = () => ({
 /**
  * Creates a mock payload handler
  */
-const createMockPayloadHandler = (overrides = {}) => jest.fn(() => ({
-  updateRateLimits: true,
-  payload: {
-    notification: { body: 'Test message' },
-  },
-  ...overrides,
-}));
+const createMockPayloadHandler = (overrides = {}) =>
+  jest.fn(() =>
+    Object.assign(
+      {
+        updateRateLimits: true,
+        payload: {
+          notification: { body: 'Test message' },
+        },
+      },
+      overrides,
+    ),
+  );
 
 /**
  * Creates a mock Firestore document snapshot
@@ -58,7 +68,7 @@ const createMockDocSnapshot = (exists = false, data = {}) => ({
  */
 const createMockDocRef = (initialSnapshot = null) => {
   const snapshot = initialSnapshot || createMockDocSnapshot();
-  
+
   return {
     get: jest.fn().mockResolvedValue(snapshot),
     set: jest.fn().mockResolvedValue(),
@@ -91,14 +101,17 @@ const createMockTransaction = (mockData = {}) => ({
 /**
  * Creates mock rate limit data
  */
-const createMockRateLimitData = (overrides = {}) => ({
-  attemptsCount: 0,
-  deliveredCount: 0,
-  errorCount: 0,
-  totalCount: 0,
-  expiresAt: 'mock-timestamp',
-  ...overrides,
-});
+const createMockRateLimitData = (overrides = {}) =>
+  Object.assign(
+    {
+      attemptsCount: 0,
+      deliveredCount: 0,
+      errorCount: 0,
+      totalCount: 0,
+      expiresAt: 'mock-timestamp',
+    },
+    overrides,
+  );
 
 /**
  * Sets up Firestore collection chain mock

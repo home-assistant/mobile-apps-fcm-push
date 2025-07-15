@@ -95,7 +95,7 @@ describe('handleRequest', () => {
       if (docSnapshot.exists && docSnapshot.data()) {
         transactionCurrentData = Object.assign({}, docSnapshot.data());
       }
-      
+
       const mockTransaction = {
         get: jest.fn().mockImplementation(() => ({
           exists: transactionDocExists,
@@ -116,7 +116,7 @@ describe('handleRequest', () => {
           docRef.update(data);
         }),
       };
-      
+
       return await callback(mockTransaction);
     });
   });
@@ -140,23 +140,28 @@ describe('handleRequest', () => {
       totalCount: 1,
     });
 
-    assertSuccessfulFlow({ mockMessaging, mockRes: res }, {
-      attempts: 1,
-      successful: 1,
-      total: 1,
-      errors: 0,
-    });
+    assertSuccessfulFlow(
+      { mockMessaging, mockRes: res },
+      {
+        attempts: 1,
+        successful: 1,
+        total: 1,
+        errors: 0,
+      },
+    );
   });
 
   test('should handle successful notification send and update existing doc', async () => {
     // Set up existing document
     docSnapshot.exists = true;
-    docSnapshot.data.mockReturnValue(createMockRateLimitData({
-      attemptsCount: 10,
-      deliveredCount: 5,
-      errorCount: 2,
-      totalCount: 7,
-    }));
+    docSnapshot.data.mockReturnValue(
+      createMockRateLimitData({
+        attemptsCount: 10,
+        deliveredCount: 5,
+        errorCount: 2,
+        totalCount: 7,
+      }),
+    );
 
     await indexModule.handleRequest(req, res, payloadHandler);
 
@@ -196,12 +201,14 @@ describe('handleRequest', () => {
   test('should reject notifications over rate limit', async () => {
     // Set up doc over rate limit
     docSnapshot.exists = true;
-    docSnapshot.data.mockReturnValue(createMockRateLimitData({
-      attemptsCount: 501,
-      deliveredCount: 501, // Over MAX_NOTIFICATIONS_PER_DAY (500)
-      errorCount: 0,
-      totalCount: 501,
-    }));
+    docSnapshot.data.mockReturnValue(
+      createMockRateLimitData({
+        attemptsCount: 501,
+        deliveredCount: 501, // Over MAX_NOTIFICATIONS_PER_DAY (500)
+        errorCount: 0,
+        totalCount: 501,
+      }),
+    );
 
     await indexModule.handleRequest(req, res, payloadHandler);
 

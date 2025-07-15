@@ -6,11 +6,11 @@ const assert = require('assert');
 
 describe('legacy.js', () => {
   const fixturesDir = './test/fixtures/legacy/';
-  
+
   // Get fixture files synchronously for test definition
   const files = fs.readdirSync(fixturesDir);
-  const jsonFiles = files.filter(file => file.endsWith('.json'));
-  
+  const jsonFiles = files.filter((file) => file.endsWith('.json'));
+
   // Create a test for each fixture file
   jsonFiles.forEach((file) => {
     it(`should handle ${file}`, (done) => {
@@ -33,18 +33,18 @@ describe('legacy.js', () => {
         };
 
         const result = legacy.createPayload({ body: input });
-        
+
         // Remove things that aren't worth copy/pasting between test cases
         delete result['payload']['android'];
         delete result['payload']['notification'];
         delete result['payload']['fcm_options'];
-        
+
         assert.deepStrictEqual(result, expected);
         done();
       });
     });
   });
-  
+
   // Ensure we have fixture files to test
   it('should have fixture files to test', () => {
     expect(jsonFiles.length).toBeGreaterThan(0);
