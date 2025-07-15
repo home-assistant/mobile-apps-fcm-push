@@ -1,0 +1,42 @@
+{
+  "name": "home-assistant/mobile-apps-fcm-push",
+  "image": "mcr.microsoft.com/devcontainers/base:noble",
+  "postCreateCommand": "bash -i -c 'cd functions && npm install'",
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:${containerWorkspaceFolder}/node_modules/.bin"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "github.vscode-pull-request-github"
+      ],
+      "settings": {
+        "editor.formatOnPaste": false,
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "[javascript]": {
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "always",
+            "source.sortImports": "always",
+            "source.removeUnusedImports": "always",
+            "source.fixAll": "explicit"
+          },
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    },
+    "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
+      "packages": "python3-dev"
+    }
+  }
+}
