@@ -7,6 +7,7 @@ const mockMessaging = {
 
 const mockFirestore = {
   collection: jest.fn(),
+  runTransaction: jest.fn(),
 };
 
 const mockFunctions = {
@@ -123,6 +124,41 @@ describe('handleRequest', () => {
     mockFirestore.collection.mockReturnValue({
       doc: jest.fn(() => dateRef),
     });
+
+    // Set up transaction mock that maintains state across transactions
+    mockFirestore.runTransaction.mockImplementation(async (callback) => {
+      // Capture the current state from docSnapshot at the time of the transaction
+      let transactionDocExists = docSnapshot.exists;
+      let transactionCurrentData = null;
+      if (docSnapshot.exists && docSnapshot.data()) {
+        transactionCurrentData = Object.assign({}, docSnapshot.data());
+      }
+      
+      const mockTransaction = {
+        get: jest.fn().mockImplementation(() => ({
+          exists: transactionDocExists,
+          data: () => transactionCurrentData || {},
+        })),
+        set: jest.fn().mockImplementation((ref, data) => {
+          transactionDocExists = true;
+          transactionCurrentData = Object.assign({}, data);
+          // Update the global mock for subsequent transactions
+          docSnapshot.exists = true;
+          docSnapshot.data = jest.fn(() => transactionCurrentData);
+          docRef.set(data);
+        }),
+        update: jest.fn().mockImplementation((ref, data) => {
+          if (transactionCurrentData) {
+            transactionCurrentData = Object.assign({}, transactionCurrentData, data);
+            // Update the global mock for subsequent transactions
+            docSnapshot.data = jest.fn(() => transactionCurrentData);
+          }
+          docRef.update(data);
+        }),
+      };
+      
+      return await callback(mockTransaction);
+    });
   });
 
   test('should handle successful notification send and create new doc', async () => {
@@ -137,15 +173,21 @@ describe('handleRequest', () => {
     const sentPayload = mockMessaging.send.mock.calls[0][0];
     expect(sentPayload.token).toBe('test:token123');
 
-    // Verify Firestore doc was created
+    // Verify Firestore operations: recordAttempt creates doc, recordSuccess updates it
     expect(docRef.set).toHaveBeenCalledTimes(1);
-    expect(docRef.update).not.toHaveBeenCalled();
+    expect(docRef.update).toHaveBeenCalledTimes(1);
 
-    const savedData = docRef.set.mock.calls[0][0];
-    expect(savedData.attemptsCount).toBe(1);
-    expect(savedData.deliveredCount).toBe(1);
-    expect(savedData.totalCount).toBe(1);
-    expect(savedData.errorCount).toBe(0);
+    // Check recordAttempt created the initial doc
+    const initialData = docRef.set.mock.calls[0][0];
+    expect(initialData.attemptsCount).toBe(1);
+    expect(initialData.deliveredCount).toBe(0);
+    expect(initialData.totalCount).toBe(0);
+    expect(initialData.errorCount).toBe(0);
+
+    // Check recordSuccess updated the doc
+    const updatedData = docRef.update.mock.calls[0][0];
+    expect(updatedData.deliveredCount).toBe(1);
+    expect(updatedData.totalCount).toBe(1);
 
     // Verify successful response
     expect(res.status).toHaveBeenCalledWith(201);
@@ -167,15 +209,18 @@ describe('handleRequest', () => {
 
     await indexModule.handleRequest(req, res, payloadHandler);
 
-    // Verify Firestore doc was updated
-    expect(docRef.update).toHaveBeenCalledTimes(1);
+    // Verify Firestore operations: recordAttempt updates, recordSuccess updates
+    expect(docRef.update).toHaveBeenCalledTimes(2);
     expect(docRef.set).not.toHaveBeenCalled();
 
-    const updatedData = docRef.update.mock.calls[0][0];
-    expect(updatedData.attemptsCount).toBe(11);
-    expect(updatedData.deliveredCount).toBe(6);
-    expect(updatedData.totalCount).toBe(8);
-    expect(updatedData.errorCount).toBe(2);
+    // Check recordAttempt updated attempts count
+    const attemptUpdate = docRef.update.mock.calls[0][0];
+    expect(attemptUpdate.attemptsCount).toBe(11);
+
+    // Check recordSuccess updated delivered and total counts
+    const successUpdate = docRef.update.mock.calls[1][0];
+    expect(successUpdate.deliveredCount).toBe(6);
+    expect(successUpdate.totalCount).toBe(8);
 
     // Verify response
     expect(res.status).toHaveBeenCalledWith(201);
@@ -187,13 +232,21 @@ describe('handleRequest', () => {
 
     await indexModule.handleRequest(req, res, payloadHandler);
 
-    // Verify Firestore doc was created with error count
+    // Verify Firestore operations: recordAttempt creates doc, recordError updates it
     expect(docRef.set).toHaveBeenCalledTimes(1);
-    const savedData = docRef.set.mock.calls[0][0];
-    expect(savedData.attemptsCount).toBe(1);
-    expect(savedData.deliveredCount).toBe(0);
-    expect(savedData.errorCount).toBe(1);
-    expect(savedData.totalCount).toBe(1);
+    expect(docRef.update).toHaveBeenCalledTimes(1);
+
+    // Check recordAttempt created the initial doc
+    const initialData = docRef.set.mock.calls[0][0];
+    expect(initialData.attemptsCount).toBe(1);
+    expect(initialData.deliveredCount).toBe(0);
+    expect(initialData.totalCount).toBe(0);
+    expect(initialData.errorCount).toBe(0);
+
+    // Check recordError updated the doc
+    const errorUpdate = docRef.update.mock.calls[0][0];
+    expect(errorUpdate.errorCount).toBe(1);
+    expect(errorUpdate.totalCount).toBe(1);
 
     // Verify error response
     expect(res.status).toHaveBeenCalledWith(500);
@@ -217,11 +270,11 @@ describe('handleRequest', () => {
     // Verify notification was not sent (only rate limit doc update)
     expect(mockMessaging.send).not.toHaveBeenCalled();
 
-    // Verify doc was still updated with attempt
+    // Verify only attempt was recorded (not success, since rate limited)
     expect(docRef.update).toHaveBeenCalledTimes(1);
     const updatedData = docRef.update.mock.calls[0][0];
     expect(updatedData.attemptsCount).toBe(502);
-    expect(updatedData.deliveredCount).toBe(501);
+    // deliveredCount should not be updated since this was rate limited
 
     // Verify rate limit response
     expect(res.status).toHaveBeenCalledWith(429);

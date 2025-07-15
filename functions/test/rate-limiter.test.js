@@ -18,8 +18,11 @@ const mockCollection = jest.fn(() => ({
   })),
 }));
 
+const mockRunTransaction = jest.fn();
+
 const mockGetFirestore = jest.fn(() => ({
   collection: mockCollection,
+  runTransaction: mockRunTransaction,
 }));
 
 jest.mock('firebase-admin/firestore', () => ({
@@ -78,6 +81,50 @@ describe('RateLimiter', () => {
         mockData[key] = Object.assign({}, mockData[key], data);
       }),
     }));
+
+    // Configure transaction mock
+    mockRunTransaction.mockImplementation(async (callback) => {
+      const mockTransaction = {
+        get: async (docRef) => {
+          // Use testToken for consistency
+          const tokenId = testToken;
+          
+          const collectionName = 'rateLimits';
+          const docId = getToday();
+          const subCollectionName = 'tokens';
+          const key = `${collectionName}/${docId}/${subCollectionName}/${tokenId}`;
+          
+          return {
+            exists: Boolean(mockData[key]),
+            data: () => mockData[key],
+          };
+        },
+        set: async (docRef, data) => {
+          const tokenId = testToken;
+          
+          const collectionName = 'rateLimits';
+          const docId = getToday();
+          const subCollectionName = 'tokens';
+          const key = `${collectionName}/${docId}/${subCollectionName}/${tokenId}`;
+          
+          mockData[key] = data;
+          mockSet(data);
+        },
+        update: async (docRef, data) => {
+          const tokenId = testToken;
+          
+          const collectionName = 'rateLimits';
+          const docId = getToday();
+          const subCollectionName = 'tokens';
+          const key = `${collectionName}/${docId}/${subCollectionName}/${tokenId}`;
+          
+          mockData[key] = Object.assign({}, mockData[key], data);
+          mockUpdate(data);
+        },
+      };
+      
+      return await callback(mockTransaction);
+    });
   });
 
   afterEach(() => {
@@ -95,8 +142,8 @@ describe('RateLimiter', () => {
 
   describe('Basic functionality', () => {
     test('should initialize with zero counts', async () => {
-      const rateLimiter = new RateLimiter(testToken, maxNotificationsPerDay);
-      const status = await rateLimiter.checkRateLimit();
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
+      const status = await rateLimiter.checkRateLimit(testToken);
 
       expect(status.isRateLimited).toBe(false);
       expect(status.rateLimits.attempts).toBe(0);
@@ -106,12 +153,12 @@ describe('RateLimiter', () => {
     });
 
     test('should increment counters on success', async () => {
-      const rateLimiter = new RateLimiter(testToken, maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
-      await rateLimiter.recordAttempt();
-      await rateLimiter.recordSuccess();
+      await rateLimiter.recordAttempt(testToken);
+      await rateLimiter.recordSuccess(testToken);
 
-      const status = await rateLimiter.checkRateLimit();
+      const status = await rateLimiter.checkRateLimit(testToken);
       expect(status.rateLimits.attempts).toBe(1);
       expect(status.rateLimits.successful).toBe(1);
       expect(status.rateLimits.total).toBe(1);
@@ -119,12 +166,12 @@ describe('RateLimiter', () => {
     });
 
     test('should increment counters on error', async () => {
-      const rateLimiter = new RateLimiter(testToken, maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
-      await rateLimiter.recordAttempt();
-      await rateLimiter.recordError();
+      await rateLimiter.recordAttempt(testToken);
+      await rateLimiter.recordError(testToken);
 
-      const status = await rateLimiter.checkRateLimit();
+      const status = await rateLimiter.checkRateLimit(testToken);
       expect(status.rateLimits.attempts).toBe(1);
       expect(status.rateLimits.errors).toBe(1);
       expect(status.rateLimits.total).toBe(1);
@@ -132,56 +179,55 @@ describe('RateLimiter', () => {
     });
 
     test('should enforce rate limit', async () => {
-      const rateLimiter = new RateLimiter(testToken, 5); // Low limit for testing
+      const rateLimiter = new RateLimiter(5); // Low limit for testing
 
       // Send 5 successful notifications
-      const promises = [];
       for (let i = 0; i < 5; i++) {
-        promises.push(rateLimiter.recordAttempt().then(() => rateLimiter.recordSuccess()));
+        // eslint-disable-next-line no-await-in-loop
+        await rateLimiter.recordAttempt(testToken);
+        // eslint-disable-next-line no-await-in-loop
+        await rateLimiter.recordSuccess(testToken);
       }
-      await Promise.all(promises);
 
       // Check rate limit status after exactly reaching the limit
-      let status = await rateLimiter.checkRateLimit();
+      let status = await rateLimiter.checkRateLimit(testToken);
       expect(status.isRateLimited).toBe(true); // >= max means rate limited
       expect(status.shouldSendRateLimitNotification).toBe(true); // Exactly at limit
       expect(status.rateLimits.remaining).toBe(0);
 
       // Try one more to go over the limit
-      await rateLimiter.recordAttempt();
-      await rateLimiter.recordSuccess();
+      await rateLimiter.recordAttempt(testToken);
+      await rateLimiter.recordSuccess(testToken);
 
-      status = await rateLimiter.checkRateLimit();
+      status = await rateLimiter.checkRateLimit(testToken);
       expect(status.isRateLimited).toBe(true); // Still rate limited
       expect(status.shouldSendRateLimitNotification).toBe(false); // Only true when exactly at limit
       expect(status.rateLimits.remaining).toBe(0);
     });
 
     test('should call Firestore operations correctly', async () => {
-      const rateLimiter = new RateLimiter(testToken, maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
       // First operation should call get
-      await rateLimiter.checkRateLimit();
+      await rateLimiter.checkRateLimit(testToken);
       expect(mockGet).toHaveBeenCalledTimes(1);
 
-      // Recording success should call set for new document
-      await rateLimiter.recordAttempt();
-      await rateLimiter.recordSuccess();
+      // Recording attempt should use transaction
+      await rateLimiter.recordAttempt(testToken);
       expect(mockSet).toHaveBeenCalledTimes(1);
 
-      // Another success should call set again since docExists is still false in our mock
-      await rateLimiter.recordAttempt();
-      await rateLimiter.recordSuccess();
-      expect(mockSet).toHaveBeenCalledTimes(2);
+      // Recording success should use transaction
+      await rateLimiter.recordSuccess(testToken);
+      expect(mockUpdate).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('Document storage functionality', () => {
     test('should store data for current date', async () => {
-      const rateLimiter = new RateLimiter(testToken, maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
-      await rateLimiter.recordAttempt();
-      await rateLimiter.recordSuccess();
+      await rateLimiter.recordAttempt(testToken);
+      await rateLimiter.recordSuccess(testToken);
 
       // Check that data is stored under today's date
       const today = getToday();
@@ -192,8 +238,8 @@ describe('RateLimiter', () => {
     });
 
     test('resetsAt should show next day midnight', async () => {
-      const rateLimiter = new RateLimiter(testToken, maxNotificationsPerDay);
-      const status = await rateLimiter.checkRateLimit();
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
+      const status = await rateLimiter.checkRateLimit(testToken);
 
       const resetsAt = status.rateLimits.resetsAt;
       expect(resetsAt.getFullYear()).toBe(2024);
@@ -205,35 +251,29 @@ describe('RateLimiter', () => {
     });
 
     test('should handle multiple instances for same token', async () => {
-      const rateLimiter1 = new RateLimiter(testToken, maxNotificationsPerDay);
-      const rateLimiter2 = new RateLimiter(testToken, maxNotificationsPerDay);
+      const rateLimiter1 = new RateLimiter(maxNotificationsPerDay);
+      const rateLimiter2 = new RateLimiter(maxNotificationsPerDay);
 
       // First instance records activity
-      await rateLimiter1.recordAttempt();
-      await rateLimiter1.recordSuccess();
+      await rateLimiter1.recordAttempt(testToken);
+      await rateLimiter1.recordSuccess(testToken);
 
       // Second instance should see the same data (since it queries Firestore)
-      const status = await rateLimiter2.checkRateLimit();
+      const status = await rateLimiter2.checkRateLimit(testToken);
       expect(status.rateLimits.successful).toBe(1);
     });
   });
 
   describe('Debug mode', () => {
-    test('should log when debug mode is enabled', async () => {
+    test('should not log in debug mode (removed debug logging)', async () => {
       const functions = require('firebase-functions');
-      const rateLimiter = new RateLimiter(testToken, maxNotificationsPerDay, true);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay, true);
 
-      await rateLimiter.recordAttempt();
-      await rateLimiter.recordSuccess();
+      await rateLimiter.recordAttempt(testToken);
+      await rateLimiter.recordSuccess(testToken);
 
-      expect(functions.logger.info).toHaveBeenCalledWith('Creating new rate limit doc!');
-
-      // In the current implementation, both operations create new docs since _docExists stays false
-      await rateLimiter.recordAttempt();
-      await rateLimiter.recordSuccess();
-
-      expect(functions.logger.info).toHaveBeenCalledTimes(2);
-      expect(functions.logger.info).toHaveBeenNthCalledWith(2, 'Creating new rate limit doc!');
+      // Debug logging was removed in the refactor
+      expect(functions.logger.info).not.toHaveBeenCalled();
     });
   });
 });

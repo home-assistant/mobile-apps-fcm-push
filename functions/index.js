@@ -46,8 +46,8 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
   }
 
   try {
-    const rateLimiter = new RateLimiter(token, MAX_NOTIFICATIONS_PER_DAY, debug);
-    const rateLimitInfo = await rateLimiter.checkRateLimit();
+    const rateLimiter = new RateLimiter(MAX_NOTIFICATIONS_PER_DAY, debug);
+    const rateLimitInfo = await rateLimiter.checkRateLimit(token);
     return res.status(200).send({
       target: token,
       rateLimits: rateLimitInfo.rateLimits,
@@ -77,18 +77,18 @@ async function handleRequest(req, res, payloadHandler) {
   payload.token = token;
 
   // Create a rate limiter instance for this request
-  const rateLimiter = new RateLimiter(token, MAX_NOTIFICATIONS_PER_DAY, debug);
+  const rateLimiter = new RateLimiter(MAX_NOTIFICATIONS_PER_DAY, debug);
 
   let rateLimitInfo;
   try {
-    rateLimitInfo = await rateLimiter.checkRateLimit();
+    rateLimitInfo = await rateLimiter.checkRateLimit(token);
   } catch (err) {
     return handleError(req, res, payload, 'getRateLimitDoc', err);
   }
 
   if (updateRateLimits) {
     // Increment attempts count
-    const attemptInfo = await rateLimiter.recordAttempt();
+    const attemptInfo = await rateLimiter.recordAttempt(token);
 
     if (attemptInfo.shouldSendRateLimitNotification) {
       try {
@@ -120,13 +120,13 @@ async function handleRequest(req, res, payloadHandler) {
   try {
     messageId = await messaging.send(payload);
     if (updateRateLimits) {
-      rateLimits = await rateLimiter.recordSuccess();
+      rateLimits = await rateLimiter.recordSuccess(token);
     } else {
       rateLimits = rateLimitInfo.rateLimits;
     }
   } catch (err) {
     if (updateRateLimits) {
-      await rateLimiter.recordError();
+      await rateLimiter.recordError(token);
     }
     return handleError(req, res, payload, 'sendNotification', err);
   }
