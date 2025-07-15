@@ -20,6 +20,8 @@ const logging = new Logging();
 const debug = isDebug();
 const MAX_NOTIFICATIONS_PER_DAY = parseInt(process.env.MAX_NOTIFICATIONS_PER_DAY || '500');
 
+const rateLimiter = new RateLimiter(MAX_NOTIFICATIONS_PER_DAY, debug);
+
 const region = (functions.config().app && functions.config().app.region) || 'us-central1';
 const regionalFunctions = functions.region(region).runWith({ timeoutSeconds: 10 });
 
@@ -46,7 +48,6 @@ exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) => 
   }
 
   try {
-    const rateLimiter = new RateLimiter(MAX_NOTIFICATIONS_PER_DAY, debug);
     const rateLimitInfo = await rateLimiter.checkRateLimit(token);
     return res.status(200).send({
       target: token,
@@ -75,9 +76,6 @@ async function handleRequest(req, res, payloadHandler) {
   const { updateRateLimits, payload } = payloadHandler(req);
 
   payload.token = token;
-
-  // Create a rate limiter instance for this request
-  const rateLimiter = new RateLimiter(MAX_NOTIFICATIONS_PER_DAY, debug);
 
   let rateLimitInfo;
   try {
