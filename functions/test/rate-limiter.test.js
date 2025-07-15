@@ -4,7 +4,6 @@ const { createMockRateLimitData, MockDataManager, getToday } = require('./utils/
 
 const { assertRateLimits } = require('./utils/assertion-helpers');
 
-// Mock Firebase Admin
 const mockTimestamp = {
   fromDate: jest.fn((date) => ({ toDate: () => date })),
 };
