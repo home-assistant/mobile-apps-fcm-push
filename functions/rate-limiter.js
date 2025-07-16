@@ -1,7 +1,6 @@
 'use strict';
 
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
-const functions = require('firebase-functions');
 
 const TWENTY_FOUR_HOURS_IN_MS = 86400000;
 
@@ -35,44 +34,46 @@ const db = getFirestore();
  */
 
 /**
- * Manages rate limiting for push notifications on a per-token basis.
- * Each instance is specific to a single push token and maintains its own state.
+ * Manages rate limiting for push notifications without caching documents.
+ * All operations require the token to be passed and directly query/update Firestore.
  */
 class RateLimiter {
   /**
-   * Creates a new RateLimiter instance for a specific push token.
+   * Creates a new RateLimiter instance.
    *
-   * @param {string} token - The push notification token to rate limit
    * @param {number} [maxNotificationsPerDay] - Maximum notifications allowed per day
    * @param {boolean} [debug=false] - Whether to enable debug logging
    */
-  constructor(token, maxNotificationsPerDay, debug = false) {
-    this.token = token;
+  constructor(maxNotificationsPerDay, debug = false) {
     this.db = db;
     this.maxNotificationsPerDay = maxNotificationsPerDay;
     this.debug = debug;
-
-    // Internal state - will be loaded on first access
-    this._loaded = false;
-    this._ref = null;
-    this._docExists = false;
-    this._docData = null;
   }
 
   /**
-   * Ensures the rate limit data is loaded from Firestore.
-   * This is called automatically by public methods.
+   * Gets a reference to the rate limit document for the given token.
    *
    * @private
-   * @returns {Promise<void>}
+   * @param {string} token - The push notification token
+   * @returns {FirebaseFirestore.DocumentReference} The document reference
    */
-  async _ensureLoaded() {
-    if (this._loaded) return;
-
+  _getDocRef(token) {
     const today = getToday();
-    this._ref = this.db.collection('rateLimits').doc(today).collection('tokens').doc(this.token);
+    return this.db.collection('rateLimits').doc(today).collection('tokens').doc(token);
+  }
 
-    this._docData = {
+  /**
+   * Checks the current rate limit status for the token without modifying any counters.
+   *
+   * @param {string} token - The push notification token
+   * @returns {Promise<RateLimitStatus>} The current rate limit status
+   * @throws {Error} If Firestore operations fail
+   */
+  async checkRateLimit(token) {
+    const docRef = this._getDocRef(token);
+    const doc = await docRef.get();
+    
+    const docData = doc.exists ? doc.data() : {
       attemptsCount: 0,
       deliveredCount: 0,
       errorCount: 0,
@@ -80,118 +81,147 @@ class RateLimiter {
       expiresAt: getFirestoreTimestamp(),
     };
 
-    const currentDoc = await this._ref.get();
-    this._docExists = currentDoc.exists;
-    if (currentDoc.exists) {
-      this._docData = currentDoc.data();
-    }
-
-    this._loaded = true;
-  }
-
-  /**
-   * Checks the current rate limit status for the token without modifying any counters.
-   *
-   * @returns {Promise<RateLimitStatus>} The current rate limit status
-   * @throws {Error} If Firestore operations fail
-   */
-  async checkRateLimit() {
-    await this._ensureLoaded();
-
-    const isRateLimited = this._docData.deliveredCount >= this.maxNotificationsPerDay;
+    const isRateLimited = docData.deliveredCount >= this.maxNotificationsPerDay;
     const shouldSendRateLimitNotification =
-      this._docData.deliveredCount === this.maxNotificationsPerDay;
+      docData.deliveredCount === this.maxNotificationsPerDay;
 
     return {
       isRateLimited,
       shouldSendRateLimitNotification,
-      rateLimits: this._getRateLimitsObject(this._docData),
+      rateLimits: this._getRateLimitsObject(docData),
     };
   }
 
   /**
-   * Records a notification attempt and increments the attempts counter.
-   * Only updates Firestore if the rate limit has been exceeded.
+   * Records a notification attempt and atomically increments the attempts counter.
    *
+   * @param {string} token - The push notification token
    * @returns {Promise<RateLimitStatus>} The updated rate limit status
    * @throws {Error} If Firestore operations fail
    */
-  async recordAttempt() {
-    await this._ensureLoaded();
+  async recordAttempt(token) {
+    const docRef = this._getDocRef(token);
+    
+    // Use transaction to atomically read and update
+    const result = await this.db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(docRef);
+      
+      let docData;
+      if (doc.exists) {
+        docData = doc.data();
+        docData.attemptsCount = docData.attemptsCount + 1;
+        transaction.update(docRef, { attemptsCount: docData.attemptsCount });
+      } else {
+        docData = {
+          attemptsCount: 1,
+          deliveredCount: 0,
+          errorCount: 0,
+          totalCount: 0,
+          expiresAt: getFirestoreTimestamp(),
+        };
+        transaction.set(docRef, docData);
+      }
+      
+      return docData;
+    });
 
-    this._docData.attemptsCount = this._docData.attemptsCount + 1;
-
-    const isRateLimited = this._docData.deliveredCount > this.maxNotificationsPerDay;
+    const isRateLimited = result.deliveredCount >= this.maxNotificationsPerDay;
     const shouldSendRateLimitNotification =
-      this._docData.deliveredCount === this.maxNotificationsPerDay;
-
-    if (this._docData.deliveredCount >= this.maxNotificationsPerDay && isRateLimited) {
-      await this._updateDoc();
-    }
+      result.deliveredCount === this.maxNotificationsPerDay;
 
     return {
       isRateLimited,
       shouldSendRateLimitNotification,
-      rateLimits: this._getRateLimitsObject(this._docData),
+      rateLimits: this._getRateLimitsObject(result),
     };
   }
 
   /**
    * Records a successful notification delivery.
-   * Increments both delivered and total counters.
+   * Atomically increments both delivered and total counters.
    * Note: Should be called after recordAttempt() to avoid double-counting attempts.
    *
+   * @param {string} token - The push notification token
    * @returns {Promise<RateLimits>} The updated rate limit statistics
    * @throws {Error} If Firestore operations fail
    */
-  async recordSuccess() {
-    await this._ensureLoaded();
+  async recordSuccess(token) {
+    const docRef = this._getDocRef(token);
+    
+    // Use transaction to atomically read and update
+    const result = await this.db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(docRef);
+      
+      let docData;
+      if (doc.exists) {
+        docData = doc.data();
+        docData.deliveredCount = docData.deliveredCount + 1;
+        docData.totalCount = docData.totalCount + 1;
+        transaction.update(docRef, {
+          deliveredCount: docData.deliveredCount,
+          totalCount: docData.totalCount
+        });
+      } else {
+        // Should not happen if recordAttempt was called first, but handle gracefully
+        docData = {
+          attemptsCount: 0,
+          deliveredCount: 1,
+          errorCount: 0,
+          totalCount: 1,
+          expiresAt: getFirestoreTimestamp(),
+        };
+        transaction.set(docRef, docData);
+      }
+      
+      return docData;
+    });
 
-    // attemptsCount was already incremented in recordAttempt
-    this._docData.deliveredCount = this._docData.deliveredCount + 1;
-    this._docData.totalCount = this._docData.totalCount + 1;
-
-    await this._updateDoc();
-
-    return this._getRateLimitsObject(this._docData);
+    return this._getRateLimitsObject(result);
   }
 
   /**
    * Records a failed notification delivery.
-   * Increments both error and total counters.
+   * Atomically increments both error and total counters.
    * Note: Should be called after recordAttempt() to avoid double-counting attempts.
    *
+   * @param {string} token - The push notification token
    * @returns {Promise<RateLimits>} The updated rate limit statistics
    * @throws {Error} If Firestore operations fail
    */
-  async recordError() {
-    await this._ensureLoaded();
+  async recordError(token) {
+    const docRef = this._getDocRef(token);
+    
+    // Use transaction to atomically read and update
+    const result = await this.db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(docRef);
+      
+      let docData;
+      if (doc.exists) {
+        docData = doc.data();
+        docData.errorCount = docData.errorCount + 1;
+        docData.totalCount = docData.totalCount + 1;
+        transaction.update(docRef, {
+          errorCount: docData.errorCount,
+          totalCount: docData.totalCount
+        });
+      } else {
+        // Should not happen if recordAttempt was called first, but handle gracefully
+        docData = {
+          attemptsCount: 0,
+          deliveredCount: 0,
+          errorCount: 1,
+          totalCount: 1,
+          expiresAt: getFirestoreTimestamp(),
+        };
+        transaction.set(docRef, docData);
+      }
+      
+      return docData;
+    });
 
-    // attemptsCount was already incremented in recordAttempt
-    this._docData.errorCount = this._docData.errorCount + 1;
-    this._docData.totalCount = this._docData.totalCount + 1;
-
-    await this._updateDoc();
-
-    return this._getRateLimitsObject(this._docData);
+    return this._getRateLimitsObject(result);
   }
 
-  /**
-   * Updates or creates the rate limit document in Firestore.
-   *
-   * @private
-   * @returns {Promise<void>}
-   * @throws {Error} If Firestore operations fail
-   */
-  async _updateDoc() {
-    if (this._docExists) {
-      if (this.debug) functions.logger.info('Updating existing rate limit doc!');
-      await this._ref.update(this._docData);
-    } else {
-      if (this.debug) functions.logger.info('Creating new rate limit doc!');
-      await this._ref.set(this._docData);
-    }
-  }
 
   /**
    * Converts internal rate limit data to a user-friendly format.
