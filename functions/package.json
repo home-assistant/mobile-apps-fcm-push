@@ -3,6 +3,7 @@
   "description": "Cloud Functions for Firebase",
   "scripts": {
     "lint": "eslint .",
+    "format": "prettier --write .",
     "serve": "firebase serve --only functions",
     "shell": "firebase functions:shell",
     "start": "npm run shell",
@@ -19,7 +20,8 @@
   "devDependencies": {
     "eslint": "^8.16.0",
     "eslint-plugin-promise": "^6.0.0",
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "prettier": "^3.6.2"
   },
   "engines": {
     "node": "20"

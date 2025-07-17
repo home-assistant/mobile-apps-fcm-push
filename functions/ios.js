@@ -49,7 +49,9 @@ module.exports = {
         payload.notification = {};
         payload.apns.payload.aps = {};
         payload.apns.payload.aps.contentAvailable = true;
-        payload.apns.payload.homeassistant = { command: 'request_location_update' };
+        payload.apns.payload.homeassistant = {
+          command: 'request_location_update',
+        };
         updateRateLimits = false;
       } else if (req.body.message === 'clear_badge') {
         payload.notification = {};
