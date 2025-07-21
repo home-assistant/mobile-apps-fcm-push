@@ -72,18 +72,19 @@ class RateLimiter {
   async checkRateLimit(token) {
     const docRef = this._getDocRef(token);
     const doc = await docRef.get();
-    
-    const docData = doc.exists ? doc.data() : {
-      attemptsCount: 0,
-      deliveredCount: 0,
-      errorCount: 0,
-      totalCount: 0,
-      expiresAt: getFirestoreTimestamp(),
-    };
+
+    const docData = doc.exists
+      ? doc.data()
+      : {
+          attemptsCount: 0,
+          deliveredCount: 0,
+          errorCount: 0,
+          totalCount: 0,
+          expiresAt: getFirestoreTimestamp(),
+        };
 
     const isRateLimited = docData.deliveredCount >= this.maxNotificationsPerDay;
-    const shouldSendRateLimitNotification =
-      docData.deliveredCount === this.maxNotificationsPerDay;
+    const shouldSendRateLimitNotification = docData.deliveredCount === this.maxNotificationsPerDay;
 
     return {
       isRateLimited,
@@ -101,11 +102,11 @@ class RateLimiter {
    */
   async recordAttempt(token) {
     const docRef = this._getDocRef(token);
-    
+
     // Use transaction to atomically read and update
     const result = await this.db.runTransaction(async (transaction) => {
       const doc = await transaction.get(docRef);
-      
+
       let docData;
       if (doc.exists) {
         docData = doc.data();
@@ -121,13 +122,12 @@ class RateLimiter {
         };
         transaction.set(docRef, docData);
       }
-      
+
       return docData;
     });
 
     const isRateLimited = result.deliveredCount >= this.maxNotificationsPerDay;
-    const shouldSendRateLimitNotification =
-      result.deliveredCount === this.maxNotificationsPerDay;
+    const shouldSendRateLimitNotification = result.deliveredCount === this.maxNotificationsPerDay;
 
     return {
       isRateLimited,
@@ -147,11 +147,11 @@ class RateLimiter {
    */
   async recordSuccess(token) {
     const docRef = this._getDocRef(token);
-    
+
     // Use transaction to atomically read and update
     const result = await this.db.runTransaction(async (transaction) => {
       const doc = await transaction.get(docRef);
-      
+
       let docData;
       if (doc.exists) {
         docData = doc.data();
@@ -159,7 +159,7 @@ class RateLimiter {
         docData.totalCount = docData.totalCount + 1;
         transaction.update(docRef, {
           deliveredCount: docData.deliveredCount,
-          totalCount: docData.totalCount
+          totalCount: docData.totalCount,
         });
       } else {
         // Should not happen if recordAttempt was called first, but handle gracefully
@@ -172,7 +172,7 @@ class RateLimiter {
         };
         transaction.set(docRef, docData);
       }
-      
+
       return docData;
     });
 
@@ -190,11 +190,11 @@ class RateLimiter {
    */
   async recordError(token) {
     const docRef = this._getDocRef(token);
-    
+
     // Use transaction to atomically read and update
     const result = await this.db.runTransaction(async (transaction) => {
       const doc = await transaction.get(docRef);
-      
+
       let docData;
       if (doc.exists) {
         docData = doc.data();
@@ -202,7 +202,7 @@ class RateLimiter {
         docData.totalCount = docData.totalCount + 1;
         transaction.update(docRef, {
           errorCount: docData.errorCount,
-          totalCount: docData.totalCount
+          totalCount: docData.totalCount,
         });
       } else {
         // Should not happen if recordAttempt was called first, but handle gracefully
@@ -215,13 +215,12 @@ class RateLimiter {
         };
         transaction.set(docRef, docData);
       }
-      
+
       return docData;
     });
 
     return this._getRateLimitsObject(result);
   }
-
 
   /**
    * Converts internal rate limit data to a user-friendly format.
@@ -260,7 +259,6 @@ function getToday() {
   const yyyy = today.getFullYear();
   return yyyy + mm + dd;
 }
-
 
 /**
  * Creates a Firestore timestamp for the end of the current day (midnight).
