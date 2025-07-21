@@ -182,7 +182,7 @@ function handleError(req, res, payload = {}, step, incomingError, shouldExit = t
         return true;
       }
 
-      return res.status(404).send({
+      return res.status(500).send({
         errorType: 'InvalidToken',
         errorCode: errorCode,
         errorStep: step,

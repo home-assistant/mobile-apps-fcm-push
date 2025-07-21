@@ -118,13 +118,13 @@ describe('FCM Error Handling', () => {
     });
   });
 
-  test('should return 404 for invalid-registration-token error without logging', async () => {
+  test('should return 500 for invalid-registration-token error without logging', async () => {
     const error = createFCMError('invalid-registration-token', 'Invalid registration token');
     mockMessaging.send.mockRejectedValue(error);
 
     await indexModule.handleRequest(req, res, payloadHandler);
 
-    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.status).toHaveBeenCalledWith(500);
     expect(res.send).toHaveBeenCalledWith({
       errorType: 'InvalidToken',
       errorCode: 'invalid-registration-token',
@@ -136,7 +136,7 @@ describe('FCM Error Handling', () => {
     expect(mockLogging.log).not.toHaveBeenCalled();
   });
 
-  test('should return 404 for registration-token-not-registered error without logging', async () => {
+  test('should return 500 for registration-token-not-registered error without logging', async () => {
     const error = createFCMError(
       'registration-token-not-registered',
       'Requested entity was not found.',
@@ -145,7 +145,7 @@ describe('FCM Error Handling', () => {
 
     await indexModule.handleRequest(req, res, payloadHandler);
 
-    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.status).toHaveBeenCalledWith(500);
     expect(res.send).toHaveBeenCalledWith({
       errorType: 'InvalidToken',
       errorCode: 'registration-token-not-registered',
