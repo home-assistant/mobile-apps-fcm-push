@@ -34,10 +34,10 @@ const db = getFirestore();
  */
 
 /**
- * Manages rate limiting for push notifications without caching documents.
+ * Manages rate limiting for push notifications using Firestore as the backend.
  * All operations require the token to be passed and directly query/update Firestore.
  */
-class RateLimiter {
+class FirestoreRateLimiter {
   /**
    * Creates a new RateLimiter instance.
    *
@@ -273,4 +273,4 @@ function getFirestoreTimestamp() {
   return Timestamp.fromDate(endDate);
 }
 
-module.exports = RateLimiter;
+module.exports = FirestoreRateLimiter;
