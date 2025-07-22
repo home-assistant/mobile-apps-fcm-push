@@ -164,7 +164,6 @@ class MockDataManager {
   }
 }
 
-
 module.exports = {
   createMockRequest,
   createMockResponse,

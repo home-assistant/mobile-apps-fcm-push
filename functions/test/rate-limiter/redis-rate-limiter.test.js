@@ -53,7 +53,6 @@ describe('RedisRateLimiter', () => {
     jest.restoreAllMocks();
   });
 
-
   describe('Basic functionality', () => {
     test('should initialize with zero counts', async () => {
       mockRedis.hgetall.mockResolvedValue({});
