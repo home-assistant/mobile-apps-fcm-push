@@ -1,25 +1,12 @@
 'use strict';
 
+const { getToday, TWENTY_FOUR_HOURS_IN_MS } = require('./util');
+
 const Redis = require('ioredis');
 
-const TWENTY_FOUR_HOURS_IN_MS = 86400000;
-
 /**
- * @typedef {Object} RateLimits
- * @property {number} attempts - Total number of attempts made
- * @property {number} successful - Number of successfully delivered notifications
- * @property {number} errors - Number of failed notification attempts
- * @property {number} total - Total number of notifications (successful + errors)
- * @property {number} maximum - Maximum notifications allowed per day
- * @property {number} remaining - Remaining notifications allowed today
- * @property {Date} resetsAt - When the rate limit resets
- */
-
-/**
- * @typedef {Object} RateLimitStatus
- * @property {boolean} isRateLimited - Whether the token has exceeded the rate limit
- * @property {boolean} shouldSendRateLimitNotification - Whether to send a rate limit notification
- * @property {RateLimits} rateLimits - Current rate limit statistics
+ * @typedef {import('./util').RateLimits} RateLimits
+ * @typedef {import('./util').RateLimitStatus} RateLimitStatus
  */
 
 /**
@@ -238,20 +225,6 @@ class RedisRateLimiter {
   async close() {
     await this.redis.quit();
   }
-}
-
-/**
- * Gets today's date in YYYYMMDD format for use in Redis keys.
- *
- * @private
- * @returns {string} Today's date as YYYYMMDD
- */
-function getToday() {
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  return yyyy + mm + dd;
 }
 
 module.exports = RedisRateLimiter;

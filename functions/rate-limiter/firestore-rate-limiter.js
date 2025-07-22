@@ -2,30 +2,17 @@
 
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 
-const TWENTY_FOUR_HOURS_IN_MS = 86400000;
+const { getToday, TWENTY_FOUR_HOURS_IN_MS } = require('./util');
 
 const db = getFirestore();
 
 /**
- * @typedef {Object} RateLimits
- * @property {number} attempts - Total number of attempts made
- * @property {number} successful - Number of successfully delivered notifications
- * @property {number} errors - Number of failed notification attempts
- * @property {number} total - Total number of notifications (successful + errors)
- * @property {number} maximum - Maximum notifications allowed per day
- * @property {number} remaining - Remaining notifications allowed today
- * @property {Date} resetsAt - When the rate limit resets
+ * @typedef {import('./util').RateLimits} RateLimits
+ * @typedef {import('./util').RateLimitStatus} RateLimitStatus
  */
 
 /**
- * @typedef {Object} RateLimitStatus
- * @property {boolean} isRateLimited - Whether the token has exceeded the rate limit
- * @property {boolean} shouldSendRateLimitNotification - Whether to send a rate limit notification
- * @property {RateLimits} rateLimits - Current rate limit statistics
- */
-
-/**
- * @typedef {Object} RateLimitData
+ * @typedef {Object} FirestoreRateLimitData
  * @property {number} attemptsCount - Number of attempts
  * @property {number} deliveredCount - Number of delivered notifications
  * @property {number} errorCount - Number of errors
@@ -226,7 +213,7 @@ class FirestoreRateLimiter {
    * Converts internal rate limit data to a user-friendly format.
    *
    * @private
-   * @param {RateLimitData} doc - The internal rate limit data
+   * @param {FirestoreRateLimitData} doc - The internal rate limit data
    * @returns {RateLimits} User-friendly rate limit statistics
    */
   _getRateLimitsObject(doc) {
@@ -244,20 +231,6 @@ class FirestoreRateLimiter {
       resetsAt: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1),
     };
   }
-}
-
-/**
- * Gets today's date in YYYYMMDD format for use as a Firestore document ID.
- *
- * @private
- * @returns {string} Today's date as YYYYMMDD
- */
-function getToday() {
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  return yyyy + mm + dd;
 }
 
 /**

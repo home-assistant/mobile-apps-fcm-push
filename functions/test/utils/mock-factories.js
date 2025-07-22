@@ -164,16 +164,6 @@ class MockDataManager {
   }
 }
 
-/**
- * Gets today's date in YYYYMMDD format
- */
-const getToday = () => {
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  return yyyy + mm + dd;
-};
 
 module.exports = {
   createMockRequest,
@@ -185,5 +175,4 @@ module.exports = {
   createMockRateLimitData,
   setupFirestoreCollectionChain,
   MockDataManager,
-  getToday,
 };

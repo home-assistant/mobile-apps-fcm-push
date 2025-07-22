@@ -1,6 +1,7 @@
 'use strict';
 
-const { createMockRateLimitData, MockDataManager, getToday } = require('../utils/mock-factories');
+const { createMockRateLimitData, MockDataManager } = require('../utils/mock-factories');
+const { getToday } = require('../../rate-limiter/util');
 
 const { assertRateLimits } = require('../utils/assertion-helpers');
 
