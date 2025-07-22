@@ -169,11 +169,35 @@ function handleError(req, res, payload = {}, step, incomingError, shouldExit = t
     incomingError = new Error(incomingError);
   }
 
+  // Handle Firebase Messaging errors with appropriate status codes
+  if (incomingError.code && incomingError.code.startsWith('messaging/')) {
+    const errorCode = incomingError.code.replace('messaging/', '');
+
+    // For specific token errors, skip reporting and return immediately
+    if (
+      errorCode === 'invalid-registration-token' ||
+      errorCode === 'registration-token-not-registered'
+    ) {
+      if (!shouldExit) {
+        return true;
+      }
+
+      return res.status(500).send({
+        errorType: 'InvalidToken',
+        errorCode: errorCode,
+        errorStep: step,
+        message: incomingError.message,
+      });
+    }
+  }
+
+  // Report all other errors before responding
   return reportError(incomingError, step, req, payload).then(() => {
     if (!shouldExit) {
       return true;
     }
 
+    // Default error response for all errors
     return res.status(500).send({
       errorType: 'InternalError',
       errorStep: step,
