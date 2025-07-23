@@ -116,8 +116,8 @@ class ValkeyRateLimiter {
     await this.connect();
     const key = this._getValkeyKey(token);
 
-    // Use Valkey batch for atomic operations
-    const batch = new ClusterBatch(false); // Non-atomic for pipeline-like behavior
+    // Use Valkey batch with non-atomic operations as we don't need strict atomicity here
+    const batch = new ClusterBatch(false);
     batch.hincrby(key, 'attemptsCount', 1);
     batch.expire(key, this._getTTLSeconds());
     batch.hgetall(key);
@@ -155,8 +155,8 @@ class ValkeyRateLimiter {
     await this.connect();
     const key = this._getValkeyKey(token);
 
-    // Use Valkey batch for atomic operations
-    const batch = new ClusterBatch(false); // Non-atomic for pipeline-like behavior
+    // Use Valkey batch with non-atomic operations as we don't need strict atomicity here
+    const batch = new ClusterBatch(false);
     batch.hincrby(key, 'deliveredCount', 1);
     batch.hincrby(key, 'totalCount', 1);
     batch.expire(key, this._getTTLSeconds());
@@ -188,8 +188,8 @@ class ValkeyRateLimiter {
     await this.connect();
     const key = this._getValkeyKey(token);
 
-    // Use Valkey batch for atomic operations
-    const batch = new ClusterBatch(false); // Non-atomic for pipeline-like behavior
+    // Use Valkey batch with non-atomic operations as we don't need strict atomicity here
+    const batch = new ClusterBatch(false);
     batch.hincrby(key, 'errorCount', 1);
     batch.hincrby(key, 'totalCount', 1);
     batch.expire(key, this._getTTLSeconds());
