@@ -40,7 +40,11 @@ describe('ValkeyRateLimiter', () => {
       hgetall: jest.fn().mockReturnThis(),
     };
 
-    ClusterBatch.mockImplementation(() => mockBatch);
+    ClusterBatch.mockImplementation((isAtomic) => {
+      // Verify that atomic batches are being used for rate limiting
+      expect(isAtomic).toBe(true);
+      return mockBatch;
+    });
 
     // Mock the createClient method
     GlideClusterClient.createClient.mockResolvedValue(mockClient);
@@ -71,7 +75,7 @@ describe('ValkeyRateLimiter', () => {
       });
     });
 
-    test('should increment attempts counter', async () => {
+    test('should atomically increment attempts counter', async () => {
       mockClient.exec.mockResolvedValue([
         1,
         'OK',
@@ -89,7 +93,7 @@ describe('ValkeyRateLimiter', () => {
       expect(status.rateLimits.attempts).toBe(1);
     });
 
-    test('should increment success counters', async () => {
+    test('should atomically increment success counters', async () => {
       mockClient.exec.mockResolvedValue([
         1,
         1,
@@ -113,7 +117,7 @@ describe('ValkeyRateLimiter', () => {
       expect(rateLimits.total).toBe(1);
     });
 
-    test('should increment error counters', async () => {
+    test('should atomically increment error counters', async () => {
       mockClient.exec.mockResolvedValue([
         1,
         1,
@@ -308,10 +312,25 @@ describe('ValkeyRateLimiter', () => {
       );
     });
 
-    test('should handle batch execution errors', async () => {
-      mockClient.exec.mockRejectedValue(new Error('Batch execution failed'));
+    test('should handle atomic batch execution errors', async () => {
+      mockClient.exec.mockRejectedValue(new Error('Atomic batch execution failed'));
 
-      await expect(rateLimiter.recordAttempt(testToken)).rejects.toThrow('Batch execution failed');
+      await expect(rateLimiter.recordAttempt(testToken)).rejects.toThrow('Atomic batch execution failed');
+    });
+  });
+
+  describe('Atomic batch operations', () => {
+    test('should use atomic ClusterBatch for rate limiting operations', async () => {
+      mockClient.exec.mockResolvedValue([
+        1,
+        'OK',
+        { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' },
+      ]);
+
+      await rateLimiter.recordAttempt(testToken);
+
+      // The ClusterBatch mock already verifies isAtomic is true in the beforeEach
+      expect(ClusterBatch).toHaveBeenCalledWith(true);
     });
   });
 

@@ -19,7 +19,8 @@ const { GlideClusterClient, ClusterBatch } = require('@valkey/valkey-glide');
 
 /**
  * Manages rate limiting for push notifications using Valkey as the backend.
- * Uses Valkey hashes for atomic and efficient updates.
+ * Uses atomic Valkey batch operations to ensure precise rate limit counting
+ * and prevent race conditions when detecting exact threshold matches.
  */
 class ValkeyRateLimiter {
   /**
@@ -107,6 +108,7 @@ class ValkeyRateLimiter {
 
   /**
    * Records a notification attempt and atomically increments the attempts counter.
+   * Uses atomic batch operations to prevent race conditions in concurrent updates.
    *
    * @param {string} token - The push notification token
    * @returns {Promise<RateLimitStatus>} The updated rate limit status
@@ -116,8 +118,8 @@ class ValkeyRateLimiter {
     await this.connect();
     const key = this._getValkeyKey(token);
 
-    // Use Valkey batch with non-atomic operations as we don't need strict atomicity here
-    const batch = new ClusterBatch(false);
+    // Use Valkey batch with atomic operations to ensure accurate rate limit counting
+    const batch = new ClusterBatch(true);
     batch.hincrby(key, 'attemptsCount', 1);
     batch.expire(key, this._getTTLSeconds());
     batch.hgetall(key);
@@ -145,7 +147,8 @@ class ValkeyRateLimiter {
 
   /**
    * Records a successful notification delivery.
-   * Atomically increments both delivered and total counters.
+   * Atomically increments both delivered and total counters using transaction semantics.
+   * This ensures accurate counting when checking for exact rate limit thresholds.
    * Note: Should be called after recordAttempt() to avoid double-counting attempts.
    *
    * @param {string} token - The push notification token
@@ -156,8 +159,8 @@ class ValkeyRateLimiter {
     await this.connect();
     const key = this._getValkeyKey(token);
 
-    // Use Valkey batch with non-atomic operations as we don't need strict atomicity here
-    const batch = new ClusterBatch(false);
+    // Use Valkey batch with atomic operations to ensure accurate rate limit counting
+    const batch = new ClusterBatch(true);
     batch.hincrby(key, 'deliveredCount', 1);
     batch.hincrby(key, 'totalCount', 1);
     batch.expire(key, this._getTTLSeconds());
@@ -179,7 +182,8 @@ class ValkeyRateLimiter {
 
   /**
    * Records a failed notification delivery.
-   * Atomically increments both error and total counters.
+   * Atomically increments both error and total counters using transaction semantics.
+   * This ensures accurate counting when checking for exact rate limit thresholds.
    * Note: Should be called after recordAttempt() to avoid double-counting attempts.
    *
    * @param {string} token - The push notification token
@@ -190,8 +194,8 @@ class ValkeyRateLimiter {
     await this.connect();
     const key = this._getValkeyKey(token);
 
-    // Use Valkey batch with non-atomic operations as we don't need strict atomicity here
-    const batch = new ClusterBatch(false);
+    // Use Valkey batch with atomic operations to ensure accurate rate limit counting
+    const batch = new ClusterBatch(true);
     batch.hincrby(key, 'errorCount', 1);
     batch.hincrby(key, 'totalCount', 1);
     batch.expire(key, this._getTTLSeconds());
