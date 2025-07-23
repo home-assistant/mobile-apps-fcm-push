@@ -11,7 +11,7 @@ initializeApp();
 const android = require('./android');
 const ios = require('./ios');
 const legacy = require('./legacy');
-const { FirestoreRateLimiter, RedisRateLimiter } = require('./rate-limiter');
+const RateLimiter = require('./rate-limiter');
 
 const messaging = getMessaging();
 
@@ -20,18 +20,7 @@ const logging = new Logging();
 const debug = isDebug();
 const MAX_NOTIFICATIONS_PER_DAY = parseInt(process.env.MAX_NOTIFICATIONS_PER_DAY || '500');
 
-// Use Redis rate limiter if Redis config is available, otherwise use Firestore
-let rateLimiter;
-if (process.env.REDIS_HOST && process.env.REDIS_PORT) {
-  rateLimiter = new RedisRateLimiter(
-    MAX_NOTIFICATIONS_PER_DAY,
-    debug,
-    process.env.REDIS_HOST,
-    parseInt(process.env.REDIS_PORT, 10),
-  );
-} else {
-  rateLimiter = new FirestoreRateLimiter(MAX_NOTIFICATIONS_PER_DAY, debug);
-}
+const rateLimiter = new RateLimiter(MAX_NOTIFICATIONS_PER_DAY, debug);
 
 const region = (functions.config().app && functions.config().app.region) || 'us-central1';
 const regionalFunctions = functions.region(region).runWith({ timeoutSeconds: 10 });

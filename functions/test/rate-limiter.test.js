@@ -1,9 +1,8 @@
 'use strict';
 
-const { createMockRateLimitData, MockDataManager } = require('../utils/mock-factories');
-const { getToday } = require('../../rate-limiter/util');
+const { createMockRateLimitData, MockDataManager, getToday } = require('./utils/mock-factories');
 
-const { assertRateLimits } = require('../utils/assertion-helpers');
+const { assertRateLimits } = require('./utils/assertion-helpers');
 
 const mockTimestamp = {
   fromDate: jest.fn((date) => ({ toDate: () => date })),
@@ -40,11 +39,10 @@ jest.mock('firebase-functions', () => ({
   },
 }));
 
-const FirestoreRateLimiter = require('../../rate-limiter/firestore-rate-limiter');
+const RateLimiter = require('../rate-limiter');
 
-describe('FirestoreRateLimiter', () => {
+describe('RateLimiter', () => {
   let mockDataManager;
-  let rateLimiter;
   const testToken = 'test-token-123';
   const maxNotificationsPerDay = 150;
 
@@ -106,7 +104,7 @@ describe('FirestoreRateLimiter', () => {
 
   describe('Basic functionality', () => {
     test('should initialize with zero counts', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
       const status = await rateLimiter.checkRateLimit(testToken);
 
       assertRateLimits.expectNotRateLimited(status);
@@ -124,7 +122,7 @@ describe('FirestoreRateLimiter', () => {
       ['error', 'recordError', { successful: 0, total: 1, errors: 1 }],
     ])('%s counter increment', (type, method, expectedCounts) => {
       test(`should increment ${type} counter`, async () => {
-        const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+        const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
         await rateLimiter.recordAttempt(testToken);
         await rateLimiter[method](testToken);
@@ -143,7 +141,7 @@ describe('FirestoreRateLimiter', () => {
     });
 
     test('should enforce rate limit', async () => {
-      const rateLimiter = new FirestoreRateLimiter(5); // Low limit for testing
+      const rateLimiter = new RateLimiter(5); // Low limit for testing
 
       // Send 5 successful notifications
       const operations = [];
@@ -175,7 +173,7 @@ describe('FirestoreRateLimiter', () => {
     });
 
     test('should call Firestore operations correctly', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
       await rateLimiter.checkRateLimit(testToken);
       expect(mockGet).toHaveBeenCalledTimes(1);
@@ -190,7 +188,7 @@ describe('FirestoreRateLimiter', () => {
 
   describe('Document storage functionality', () => {
     test('should store data for current date', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
       await rateLimiter.recordAttempt(testToken);
       await rateLimiter.recordSuccess(testToken);
@@ -202,7 +200,7 @@ describe('FirestoreRateLimiter', () => {
     });
 
     test('resetsAt should show next day midnight', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
       const status = await rateLimiter.checkRateLimit(testToken);
 
       const resetsAt = status.rateLimits.resetsAt;
@@ -215,8 +213,8 @@ describe('FirestoreRateLimiter', () => {
     });
 
     test('should handle multiple instances for same token', async () => {
-      const rateLimiter1 = new FirestoreRateLimiter(maxNotificationsPerDay);
-      const rateLimiter2 = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter1 = new RateLimiter(maxNotificationsPerDay);
+      const rateLimiter2 = new RateLimiter(maxNotificationsPerDay);
 
       await rateLimiter1.recordAttempt(testToken);
       await rateLimiter1.recordSuccess(testToken);
@@ -229,7 +227,7 @@ describe('FirestoreRateLimiter', () => {
   describe('Debug mode', () => {
     test('should not log in debug mode (removed debug logging)', async () => {
       const functions = require('firebase-functions');
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay, true);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay, true);
 
       await rateLimiter.recordAttempt(testToken);
       await rateLimiter.recordSuccess(testToken);
@@ -245,7 +243,7 @@ describe('FirestoreRateLimiter', () => {
       ['recordError', { attempts: 0, successful: 0, total: 1, errors: 1 }],
     ])('%s without prior recordAttempt', (method, expectedCounts) => {
       test(`should handle ${method} without prior recordAttempt`, async () => {
-        const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+        const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
         const result = await rateLimiter[method](testToken);
 
@@ -255,7 +253,7 @@ describe('FirestoreRateLimiter', () => {
     });
 
     test('should handle negative remaining count', async () => {
-      const rateLimiter = new FirestoreRateLimiter(5);
+      const rateLimiter = new RateLimiter(5);
 
       // Create a doc with more delivered than max allowed
       mockDataManager.setRateLimitData(
@@ -275,7 +273,7 @@ describe('FirestoreRateLimiter', () => {
     });
 
     test('should handle missing fields in document data', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
       // Create a doc with missing fields
       mockDataManager.setRateLimitData(testToken, getToday(), {
@@ -307,7 +305,7 @@ describe('FirestoreRateLimiter', () => {
       ],
     ])('%s errors', (errorType, method, setupError) => {
       test(`should handle ${errorType} errors`, async () => {
-        const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+        const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
         setupError();
 
@@ -318,7 +316,7 @@ describe('FirestoreRateLimiter', () => {
 
   describe('Concurrent operations', () => {
     test('should handle concurrent recordAttempt calls', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
       // Execute 5 recordAttempt operations sequentially using reduce
       await Array.from({ length: 5 }).reduce(async (prev) => {
@@ -331,7 +329,7 @@ describe('FirestoreRateLimiter', () => {
     });
 
     test('should handle mixed concurrent operations', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
       await rateLimiter.recordAttempt(testToken);
 
@@ -354,7 +352,7 @@ describe('FirestoreRateLimiter', () => {
 
   describe('Different token scenarios', () => {
     test('should handle multiple different tokens independently', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
       const token1 = 'token-1';
       const token2 = 'token-2';
 
@@ -409,7 +407,7 @@ describe('FirestoreRateLimiter', () => {
     });
 
     test('should handle tokens with special characters', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
       const specialToken = 'token:with/special@chars#123';
 
       await rateLimiter.recordAttempt(specialToken);
@@ -422,7 +420,7 @@ describe('FirestoreRateLimiter', () => {
 
   describe('Timestamp and date handling', () => {
     test('should correctly calculate end of day timestamp', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
       // Set time to 3 PM UTC
       jest.setSystemTime(new Date('2024-01-01T15:00:00Z'));
@@ -441,7 +439,7 @@ describe('FirestoreRateLimiter', () => {
     });
 
     test('should use correct date for document path', async () => {
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay);
+      const rateLimiter = new RateLimiter(maxNotificationsPerDay);
 
       // Test at year boundary
       jest.setSystemTime(new Date('2023-12-31T23:59:59Z'));

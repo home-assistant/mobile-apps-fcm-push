@@ -2,17 +2,30 @@
 
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 
-const { getToday, TWENTY_FOUR_HOURS_IN_MS } = require('./util');
+const TWENTY_FOUR_HOURS_IN_MS = 86400000;
 
 const db = getFirestore();
 
 /**
- * @typedef {import('./util').RateLimits} RateLimits
- * @typedef {import('./util').RateLimitStatus} RateLimitStatus
+ * @typedef {Object} RateLimits
+ * @property {number} attempts - Total number of attempts made
+ * @property {number} successful - Number of successfully delivered notifications
+ * @property {number} errors - Number of failed notification attempts
+ * @property {number} total - Total number of notifications (successful + errors)
+ * @property {number} maximum - Maximum notifications allowed per day
+ * @property {number} remaining - Remaining notifications allowed today
+ * @property {Date} resetsAt - When the rate limit resets
  */
 
 /**
- * @typedef {Object} FirestoreRateLimitData
+ * @typedef {Object} RateLimitStatus
+ * @property {boolean} isRateLimited - Whether the token has exceeded the rate limit
+ * @property {boolean} shouldSendRateLimitNotification - Whether to send a rate limit notification
+ * @property {RateLimits} rateLimits - Current rate limit statistics
+ */
+
+/**
+ * @typedef {Object} RateLimitData
  * @property {number} attemptsCount - Number of attempts
  * @property {number} deliveredCount - Number of delivered notifications
  * @property {number} errorCount - Number of errors
@@ -21,10 +34,10 @@ const db = getFirestore();
  */
 
 /**
- * Manages rate limiting for push notifications using Firestore as the backend.
+ * Manages rate limiting for push notifications without caching documents.
  * All operations require the token to be passed and directly query/update Firestore.
  */
-class FirestoreRateLimiter {
+class RateLimiter {
   /**
    * Creates a new RateLimiter instance.
    *
@@ -213,7 +226,7 @@ class FirestoreRateLimiter {
    * Converts internal rate limit data to a user-friendly format.
    *
    * @private
-   * @param {FirestoreRateLimitData} doc - The internal rate limit data
+   * @param {RateLimitData} doc - The internal rate limit data
    * @returns {RateLimits} User-friendly rate limit statistics
    */
   _getRateLimitsObject(doc) {
@@ -234,6 +247,20 @@ class FirestoreRateLimiter {
 }
 
 /**
+ * Gets today's date in YYYYMMDD format for use as a Firestore document ID.
+ *
+ * @private
+ * @returns {string} Today's date as YYYYMMDD
+ */
+function getToday() {
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  return yyyy + mm + dd;
+}
+
+/**
  * Creates a Firestore timestamp for the end of the current day (midnight).
  * Used to set document expiration times.
  *
@@ -246,4 +273,4 @@ function getFirestoreTimestamp() {
   return Timestamp.fromDate(endDate);
 }
 
-module.exports = FirestoreRateLimiter;
+module.exports = RateLimiter;
