@@ -11,7 +11,7 @@ initializeApp();
 const android = require('./android');
 const ios = require('./ios');
 const legacy = require('./legacy');
-const { FirestoreRateLimiter, RedisRateLimiter } = require('./rate-limiter');
+const { FirestoreRateLimiter, ValkeyRateLimiter } = require('./rate-limiter');
 
 const messaging = getMessaging();
 
@@ -20,14 +20,15 @@ const logging = new Logging();
 const debug = isDebug();
 const MAX_NOTIFICATIONS_PER_DAY = parseInt(process.env.MAX_NOTIFICATIONS_PER_DAY || '500');
 
-// Use Redis rate limiter if Redis config is available, otherwise use Firestore
+// Use Valkey rate limiter if Valkey config is available, otherwise use Firestore
 let rateLimiter;
-if (process.env.REDIS_HOST && process.env.REDIS_PORT) {
-  rateLimiter = new RedisRateLimiter(
+const useValkey = process.env.VALKEY_HOST && process.env.VALKEY_PORT;
+if (useValkey) {
+  rateLimiter = new ValkeyRateLimiter(
     MAX_NOTIFICATIONS_PER_DAY,
     debug,
-    process.env.REDIS_HOST,
-    parseInt(process.env.REDIS_PORT, 10),
+    process.env.VALKEY_HOST,
+    parseInt(process.env.VALKEY_PORT, 10),
   );
 } else {
   rateLimiter = new FirestoreRateLimiter(MAX_NOTIFICATIONS_PER_DAY, debug);

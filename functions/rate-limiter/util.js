@@ -21,7 +21,7 @@
 const TWENTY_FOUR_HOURS_IN_MS = 86400000;
 
 /**
- * Gets today's date in YYYYMMDD format for use in Redis keys.
+ * Gets today's date in YYYYMMDD format for use in Valkey keys.
  *
  * @private
  * @returns {string} Today's date as YYYYMMDD

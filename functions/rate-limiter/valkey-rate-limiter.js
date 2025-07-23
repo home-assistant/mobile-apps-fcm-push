@@ -2,7 +2,7 @@
 
 const { getToday, TWENTY_FOUR_HOURS_IN_MS } = require('./util');
 
-const Redis = require('ioredis');
+const { GlideClusterClient, ClusterBatch } = require('@valkey/valkey-glide');
 
 /**
  * @typedef {import('./util').RateLimits} RateLimits
@@ -18,39 +18,47 @@ const Redis = require('ioredis');
  */
 
 /**
- * Manages rate limiting for push notifications using Redis as the backend.
- * Uses Redis hashes for atomic and efficient updates.
+ * Manages rate limiting for push notifications using Valkey as the backend.
+ * Uses Valkey hashes for atomic and efficient updates.
  */
-class RedisRateLimiter {
+class ValkeyRateLimiter {
   /**
-   * Creates a new RedisRateLimiter instance.
+   * Creates a new ValkeyRateLimiter instance.
    *
    * @param {number} [maxNotificationsPerDay] - Maximum notifications allowed per day
    * @param {boolean} [debug=false] - Whether to enable debug logging
-   * @param {string} [redisHost] - Redis host
-   * @param {number} [redisPort] - Redis port
+   * @param {string} [valkeyHost] - Valkey Cluster host
+   * @param {number} [valkeyPort] - Valkey Cluster port
    */
-  constructor(maxNotificationsPerDay, debug = false, redisHost = 'localhost', redisPort = 6379) {
-    this.redis = new Redis({
-      host: redisHost,
-      port: redisPort,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-    });
+  constructor(maxNotificationsPerDay, debug = false, valkeyHost = 'localhost', valkeyPort = 6379) {
+    this.valkeyHost = valkeyHost;
+    this.valkeyPort = valkeyPort;
     this.maxNotificationsPerDay = maxNotificationsPerDay;
     this.debug = debug;
+    this.connected = false;
+    this.client = null;
+  }
+
+  async connect() {
+    if (this.connected) {
+      return; // Already connected
+    }
+    this.client = await GlideClusterClient.createClient({
+      addresses: [{ host: this.valkeyHost, port: this.valkeyPort }],
+      requestTimeout: 500,
+      clientName: 'RateLimiterClient',
+    });
+    this.connected = true;
   }
 
   /**
-   * Gets the Redis key for the rate limit data.
+   * Gets the Valkey key for the rate limit data.
    *
    * @private
    * @param {string} token - The push notification token
-   * @returns {string} The Redis key
+   * @returns {string} The Valkey key
    */
-  _getRedisKey(token) {
+  _getValkeyKey(token) {
     const today = getToday();
     return `rate_limit:${token}:${today}`;
   }
@@ -73,11 +81,12 @@ class RedisRateLimiter {
    *
    * @param {string} token - The push notification token
    * @returns {Promise<RateLimitStatus>} The current rate limit status
-   * @throws {Error} If Redis operations fail
+   * @throws {Error} If Valkey operations fail
    */
   async checkRateLimit(token) {
-    const key = this._getRedisKey(token);
-    const data = await this.redis.hgetall(key);
+    await this.connect();
+    const key = this._getValkeyKey(token);
+    const data = await this.client.hgetall(key);
 
     const docData = {
       attemptsCount: parseInt(data.attemptsCount || '0', 10),
@@ -101,19 +110,20 @@ class RedisRateLimiter {
    *
    * @param {string} token - The push notification token
    * @returns {Promise<RateLimitStatus>} The updated rate limit status
-   * @throws {Error} If Redis operations fail
+   * @throws {Error} If Valkey operations fail
    */
   async recordAttempt(token) {
-    const key = this._getRedisKey(token);
+    await this.connect();
+    const key = this._getValkeyKey(token);
 
-    // Use Redis transaction for atomic operations
-    const pipeline = this.redis.pipeline();
-    pipeline.hincrby(key, 'attemptsCount', 1);
-    pipeline.expire(key, this._getTTLSeconds());
-    pipeline.hgetall(key);
+    // Use Valkey batch for atomic operations
+    const batch = new ClusterBatch(false); // Non-atomic for pipeline-like behavior
+    batch.hincrby(key, 'attemptsCount', 1);
+    batch.expire(key, this._getTTLSeconds());
+    batch.hgetall(key);
 
-    const results = await pipeline.exec();
-    const [, , [, data]] = results;
+    const results = await this.client.exec(batch, true);
+    const [, , data] = results;
 
     const docData = {
       attemptsCount: parseInt(data.attemptsCount || '0', 10),
@@ -139,20 +149,21 @@ class RedisRateLimiter {
    *
    * @param {string} token - The push notification token
    * @returns {Promise<RateLimits>} The updated rate limit statistics
-   * @throws {Error} If Redis operations fail
+   * @throws {Error} If Valkey operations fail
    */
   async recordSuccess(token) {
-    const key = this._getRedisKey(token);
+    await this.connect();
+    const key = this._getValkeyKey(token);
 
-    // Use Redis transaction for atomic operations
-    const pipeline = this.redis.pipeline();
-    pipeline.hincrby(key, 'deliveredCount', 1);
-    pipeline.hincrby(key, 'totalCount', 1);
-    pipeline.expire(key, this._getTTLSeconds());
-    pipeline.hgetall(key);
+    // Use Valkey batch for atomic operations
+    const batch = new ClusterBatch(false); // Non-atomic for pipeline-like behavior
+    batch.hincrby(key, 'deliveredCount', 1);
+    batch.hincrby(key, 'totalCount', 1);
+    batch.expire(key, this._getTTLSeconds());
+    batch.hgetall(key);
 
-    const results = await pipeline.exec();
-    const [, , , [, data]] = results;
+    const results = await this.client.exec(batch, true);
+    const [, , , data] = results;
 
     const docData = {
       attemptsCount: parseInt(data.attemptsCount || '0', 10),
@@ -171,20 +182,21 @@ class RedisRateLimiter {
    *
    * @param {string} token - The push notification token
    * @returns {Promise<RateLimits>} The updated rate limit statistics
-   * @throws {Error} If Redis operations fail
+   * @throws {Error} If Valkey operations fail
    */
   async recordError(token) {
-    const key = this._getRedisKey(token);
+    await this.connect();
+    const key = this._getValkeyKey(token);
 
-    // Use Redis transaction for atomic operations
-    const pipeline = this.redis.pipeline();
-    pipeline.hincrby(key, 'errorCount', 1);
-    pipeline.hincrby(key, 'totalCount', 1);
-    pipeline.expire(key, this._getTTLSeconds());
-    pipeline.hgetall(key);
+    // Use Valkey batch for atomic operations
+    const batch = new ClusterBatch(false); // Non-atomic for pipeline-like behavior
+    batch.hincrby(key, 'errorCount', 1);
+    batch.hincrby(key, 'totalCount', 1);
+    batch.expire(key, this._getTTLSeconds());
+    batch.hgetall(key);
 
-    const results = await pipeline.exec();
-    const [, , , [, data]] = results;
+    const results = await this.client.exec(batch, true);
+    const [, , , data] = results;
 
     const docData = {
       attemptsCount: parseInt(data.attemptsCount || '0', 10),
@@ -220,11 +232,15 @@ class RedisRateLimiter {
   }
 
   /**
-   * Closes the Redis connection.
+   * Closes the Valkey connection.
    */
   async close() {
-    await this.redis.quit();
+    if (this.client) {
+      await this.client.close();
+      this.connected = false;
+      this.client = null;
+    }
   }
 }
 
-module.exports = RedisRateLimiter;
+module.exports = ValkeyRateLimiter;
