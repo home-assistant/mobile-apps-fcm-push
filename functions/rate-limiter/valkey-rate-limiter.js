@@ -122,6 +122,7 @@ class ValkeyRateLimiter {
     batch.expire(key, this._getTTLSeconds());
     batch.hgetall(key);
 
+    // Execute with raiseOnError true to stop on first error
     const results = await this.client.exec(batch, true);
     const [, , data] = results;
 
@@ -162,6 +163,7 @@ class ValkeyRateLimiter {
     batch.expire(key, this._getTTLSeconds());
     batch.hgetall(key);
 
+    // Execute with raiseOnError true to stop on first error
     const results = await this.client.exec(batch, true);
     const [, , , data] = results;
 
@@ -195,6 +197,7 @@ class ValkeyRateLimiter {
     batch.expire(key, this._getTTLSeconds());
     batch.hgetall(key);
 
+    // Execute with raiseOnError true to stop on first error
     const results = await this.client.exec(batch, true);
     const [, , , data] = results;
 
