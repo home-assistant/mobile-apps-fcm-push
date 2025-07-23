@@ -315,7 +315,9 @@ describe('ValkeyRateLimiter', () => {
     test('should handle atomic batch execution errors', async () => {
       mockClient.exec.mockRejectedValue(new Error('Atomic batch execution failed'));
 
-      await expect(rateLimiter.recordAttempt(testToken)).rejects.toThrow('Atomic batch execution failed');
+      await expect(rateLimiter.recordAttempt(testToken)).rejects.toThrow(
+        'Atomic batch execution failed',
+      );
     });
   });
 
