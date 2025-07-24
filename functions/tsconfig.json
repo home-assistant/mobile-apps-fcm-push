@@ -14,13 +14,6 @@
     "moduleResolution": "node",
     "resolveJsonModule": true
   },
-  "include": [
-    "*.js",
-    "rate-limiter/*.js"
-  ],
-  "exclude": [
-    "node_modules",
-    "test",
-    "coverage"
-  ]
+  "include": ["*.js", "rate-limiter/*.js"],
+  "exclude": ["node_modules", "test", "coverage"]
 }
