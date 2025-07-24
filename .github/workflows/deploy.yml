@@ -20,9 +20,68 @@ jobs:
         run: |
           cd functions
           npm install
+
+      # Setup GCP authentication
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Deploy each function with VPC connector
+      - name: Deploy Functions with VPC Connector
+        run: |
+          cd functions
+
+          # Deploy sendPushNotification function
+          gcloud functions deploy sendPushNotification \
+            --source=. \
+            --entry-point=sendPushNotification \
+            --runtime=nodejs20 \
+            --trigger=http \
+            --allow-unauthenticated \
+            --region=us-central1 \
+            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
+            --timeout=10s
+
+          # Deploy androidV1 function
+          gcloud functions deploy androidV1 \
+            --source=. \
+            --entry-point=androidV1 \
+            --runtime=nodejs20 \
+            --trigger=http \
+            --allow-unauthenticated \
+            --region=us-central1 \
+            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
+            --timeout=10s
+
+          # Deploy iOSV1 function
+          gcloud functions deploy iOSV1 \
+            --source=. \
+            --entry-point=iOSV1 \
+            --runtime=nodejs20 \
+            --trigger=http \
+            --allow-unauthenticated \
+            --region=us-central1 \
+            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
+            --timeout=10s
+
+          # Deploy checkRateLimits function
+          gcloud functions deploy checkRateLimits \
+            --source=. \
+            --entry-point=checkRateLimits \
+            --runtime=nodejs20 \
+            --trigger=http \
+            --allow-unauthenticated \
+            --region=us-central1 \
+            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
+            --timeout=10s
+
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@v14.10.1
         with:
-          args: deploy --vpc-connector ${{ secrets.VPC_CONNECTOR }}
+          args: deploy --only hoosting
         env:
           GCP_SA_KEY: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
