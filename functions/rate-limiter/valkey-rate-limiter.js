@@ -29,10 +29,10 @@ function parseHgetallResponse(data) {
     return /** @type {Record<string, string>} */ ({});
   }
 
-  let result = /** @type {Record<string, string>} */ ({});
+  const result = /** @type {Record<string, string>} */ ({});
   data.forEach((item) => {
     if (item && typeof item === 'object') {
-      result = Object.assign(result, item);
+      Object.assign(result, item);
     }
   });
   return result;
