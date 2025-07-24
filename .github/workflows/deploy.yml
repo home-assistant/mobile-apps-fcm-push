@@ -6,8 +6,57 @@ on:
       - main
 
 jobs:
-  deploy:
-    # The type of runner that the job will run on
+  deploy-functions:
+    if: ${{ secrets.VPC_CONNECTOR != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        function: [sendPushNotification, androidV1, iOSV1, checkRateLimits]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: NPM Install
+        run: |
+          cd functions
+          npm install
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy ${{ matrix.function }}
+        run: |
+          cd functions
+          gcloud functions deploy ${{ matrix.function }} \
+            --source=. \
+            --entry-point=${{ matrix.function }} \
+            --runtime=nodejs20 \
+            --trigger=http \
+            --allow-unauthenticated \
+            --region=us-central1 \
+            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
+            --timeout=10s
+
+  deploy-hosting:
+    if: ${{ secrets.VPC_CONNECTOR != '' }}
+    needs: deploy-functions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Firebase
+        uses: w9jds/firebase-action@v14.10.1
+        with:
+          args: deploy --only hosting
+        env:
+          GCP_SA_KEY: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
+
+  deploy-firestore:
+    if: ${{ secrets.VPC_CONNECTOR == '' }}
     runs-on: ubuntu-latest
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -20,68 +69,9 @@ jobs:
         run: |
           cd functions
           npm install
-
-      # Setup GCP authentication
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      # Deploy each function with VPC connector
-      - name: Deploy Functions with VPC Connector
-        run: |
-          cd functions
-
-          # Deploy sendPushNotification function
-          gcloud functions deploy sendPushNotification \
-            --source=. \
-            --entry-point=sendPushNotification \
-            --runtime=nodejs20 \
-            --trigger=http \
-            --allow-unauthenticated \
-            --region=us-central1 \
-            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
-            --timeout=10s
-
-          # Deploy androidV1 function
-          gcloud functions deploy androidV1 \
-            --source=. \
-            --entry-point=androidV1 \
-            --runtime=nodejs20 \
-            --trigger=http \
-            --allow-unauthenticated \
-            --region=us-central1 \
-            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
-            --timeout=10s
-
-          # Deploy iOSV1 function
-          gcloud functions deploy iOSV1 \
-            --source=. \
-            --entry-point=iOSV1 \
-            --runtime=nodejs20 \
-            --trigger=http \
-            --allow-unauthenticated \
-            --region=us-central1 \
-            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
-            --timeout=10s
-
-          # Deploy checkRateLimits function
-          gcloud functions deploy checkRateLimits \
-            --source=. \
-            --entry-point=checkRateLimits \
-            --runtime=nodejs20 \
-            --trigger=http \
-            --allow-unauthenticated \
-            --region=us-central1 \
-            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
-            --timeout=10s
-
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@v14.10.1
         with:
-          args: deploy --only hosting
+          args: deploy
         env:
           GCP_SA_KEY: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
