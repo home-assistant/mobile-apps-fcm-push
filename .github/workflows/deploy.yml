@@ -6,23 +6,49 @@ on:
       - main
 
 jobs:
-  deploy:
-    # The type of runner that the job will run on
+  deploy-functions:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    strategy:
+      matrix:
+        function: [sendPushNotification, androidV1, iOSV1, checkRateLimits]
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
-      # Runs a set of commands using the runners shell
       - name: NPM Install
         run: |
           cd functions
           npm install
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy ${{ matrix.function }}
+        run: |
+          cd functions
+          gcloud functions deploy ${{ matrix.function }} \
+            --source=. \
+            --entry-point=${{ matrix.function }} \
+            --runtime=nodejs20 \
+            --trigger=http \
+            --allow-unauthenticated \
+            --region=us-central1 \
+            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
+            --timeout=10s
+
+  deploy-hosting:
+    needs: deploy-functions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@v14.10.1
         with:
-          args: deploy --vpc-connector ${{ secrets.VPC_CONNECTOR }}
+          args: deploy --only hosting
         env:
           GCP_SA_KEY: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
