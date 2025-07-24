@@ -34,7 +34,7 @@ jobs:
             --source=. \
             --entry-point=${{ matrix.function }} \
             --runtime=nodejs20 \
-            --trigger=http \
+            --trigger-http \
             --allow-unauthenticated \
             --region=us-central1 \
             --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
