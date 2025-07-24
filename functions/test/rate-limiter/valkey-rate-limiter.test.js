@@ -1,16 +1,21 @@
 'use strict';
 
-const Redis = require('ioredis');
+const { GlideClusterClient, ClusterBatch } = require('@valkey/valkey-glide');
 const { getToday } = require('../../rate-limiter/util');
 
-jest.mock('ioredis');
+jest.mock('@valkey/valkey-glide', () => ({
+  GlideClusterClient: {
+    createClient: jest.fn(),
+  },
+  ClusterBatch: jest.fn(),
+}));
 
-const RedisRateLimiter = require('../../rate-limiter/redis-rate-limiter');
+const ValkeyRateLimiter = require('../../rate-limiter/valkey-rate-limiter');
 
-describe('RedisRateLimiter', () => {
-  let mockRedis;
+describe('ValkeyRateLimiter', () => {
+  let mockClient;
+  let mockBatch;
   let rateLimiter;
-  let retryStrategyFn;
   const testToken = 'test-token-123';
   const maxNotificationsPerDay = 150;
 
@@ -21,32 +26,30 @@ describe('RedisRateLimiter', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2024-01-01T10:00:00Z'));
 
-    // Mock Redis instance
-    mockRedis = {
+    // Mock Valkey client instance
+    mockClient = {
       hgetall: jest.fn(),
-      pipeline: jest.fn(),
-      hincrby: jest.fn(),
-      expire: jest.fn(),
-      quit: jest.fn(),
+      exec: jest.fn(),
+      close: jest.fn(),
     };
 
-    // Mock pipeline execution
-    const mockPipeline = {
+    // Mock ClusterBatch
+    mockBatch = {
       hincrby: jest.fn().mockReturnThis(),
       expire: jest.fn().mockReturnThis(),
       hgetall: jest.fn().mockReturnThis(),
-      exec: jest.fn(),
     };
 
-    mockRedis.pipeline.mockReturnValue(mockPipeline);
-
-    // Capture the retry strategy function
-    Redis.mockImplementation((config) => {
-      retryStrategyFn = config.retryStrategy;
-      return mockRedis;
+    ClusterBatch.mockImplementation((isAtomic) => {
+      // Verify that atomic batches are being used for rate limiting
+      expect(isAtomic).toBe(true);
+      return mockBatch;
     });
 
-    rateLimiter = new RedisRateLimiter(maxNotificationsPerDay);
+    // Mock the createClient method
+    GlideClusterClient.createClient.mockResolvedValue(mockClient);
+
+    rateLimiter = new ValkeyRateLimiter(maxNotificationsPerDay);
   });
 
   afterEach(() => {
@@ -55,7 +58,7 @@ describe('RedisRateLimiter', () => {
 
   describe('Basic functionality', () => {
     test('should initialize with zero counts', async () => {
-      mockRedis.hgetall.mockResolvedValue({});
+      mockClient.hgetall.mockResolvedValue({});
 
       const status = await rateLimiter.checkRateLimit(testToken);
 
@@ -72,42 +75,40 @@ describe('RedisRateLimiter', () => {
       });
     });
 
-    test('should increment attempts counter', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 1],
-        [null, 'OK'],
-        [null, { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' }],
+    test('should atomically increment attempts counter', async () => {
+      mockClient.exec.mockResolvedValue([
+        1,
+        'OK',
+        { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' },
       ]);
 
       const status = await rateLimiter.recordAttempt(testToken);
 
-      expect(mockPipeline.hincrby).toHaveBeenCalledWith(
+      expect(mockBatch.hincrby).toHaveBeenCalledWith(
         `rate_limit:${testToken}:${getToday()}`,
         'attemptsCount',
         1,
       );
-      expect(mockPipeline.expire).toHaveBeenCalled();
+      expect(mockBatch.expire).toHaveBeenCalled();
       expect(status.rateLimits.attempts).toBe(1);
     });
 
-    test('should increment success counters', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 1],
-        [null, 1],
-        [null, 'OK'],
-        [null, { attemptsCount: '1', deliveredCount: '1', errorCount: '0', totalCount: '1' }],
+    test('should atomically increment success counters', async () => {
+      mockClient.exec.mockResolvedValue([
+        1,
+        1,
+        'OK',
+        { attemptsCount: '1', deliveredCount: '1', errorCount: '0', totalCount: '1' },
       ]);
 
       const rateLimits = await rateLimiter.recordSuccess(testToken);
 
-      expect(mockPipeline.hincrby).toHaveBeenCalledWith(
+      expect(mockBatch.hincrby).toHaveBeenCalledWith(
         `rate_limit:${testToken}:${getToday()}`,
         'deliveredCount',
         1,
       );
-      expect(mockPipeline.hincrby).toHaveBeenCalledWith(
+      expect(mockBatch.hincrby).toHaveBeenCalledWith(
         `rate_limit:${testToken}:${getToday()}`,
         'totalCount',
         1,
@@ -116,23 +117,22 @@ describe('RedisRateLimiter', () => {
       expect(rateLimits.total).toBe(1);
     });
 
-    test('should increment error counters', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 1],
-        [null, 1],
-        [null, 'OK'],
-        [null, { attemptsCount: '1', deliveredCount: '0', errorCount: '1', totalCount: '1' }],
+    test('should atomically increment error counters', async () => {
+      mockClient.exec.mockResolvedValue([
+        1,
+        1,
+        'OK',
+        { attemptsCount: '1', deliveredCount: '0', errorCount: '1', totalCount: '1' },
       ]);
 
       const rateLimits = await rateLimiter.recordError(testToken);
 
-      expect(mockPipeline.hincrby).toHaveBeenCalledWith(
+      expect(mockBatch.hincrby).toHaveBeenCalledWith(
         `rate_limit:${testToken}:${getToday()}`,
         'errorCount',
         1,
       );
-      expect(mockPipeline.hincrby).toHaveBeenCalledWith(
+      expect(mockBatch.hincrby).toHaveBeenCalledWith(
         `rate_limit:${testToken}:${getToday()}`,
         'totalCount',
         1,
@@ -142,9 +142,9 @@ describe('RedisRateLimiter', () => {
     });
 
     test('should enforce rate limit', async () => {
-      const lowLimitRateLimiter = new RedisRateLimiter(5); // Low limit for testing
+      const lowLimitRateLimiter = new ValkeyRateLimiter(5); // Low limit for testing
 
-      mockRedis.hgetall.mockResolvedValue({
+      mockClient.hgetall.mockResolvedValue({
         attemptsCount: '5',
         deliveredCount: '5',
         errorCount: '0',
@@ -159,36 +159,32 @@ describe('RedisRateLimiter', () => {
     });
   });
 
-  describe('Redis key generation', () => {
-    test('should use correct Redis key format', async () => {
-      mockRedis.hgetall.mockResolvedValue({});
+  describe('Valkey key generation', () => {
+    test('should use correct Valkey key format', async () => {
+      mockClient.hgetall.mockResolvedValue({});
 
       await rateLimiter.checkRateLimit(testToken);
 
-      expect(mockRedis.hgetall).toHaveBeenCalledWith(`rate_limit:${testToken}:${getToday()}`);
+      expect(mockClient.hgetall).toHaveBeenCalledWith(`rate_limit:${testToken}:${getToday()}`);
     });
 
     test('should set correct TTL for keys', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 1],
-        [null, 'OK'],
-        [null, { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' }],
+      mockClient.exec.mockResolvedValue([
+        1,
+        'OK',
+        { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' },
       ]);
 
       await rateLimiter.recordAttempt(testToken);
 
       // At 10:00 UTC, TTL should be 14 hours (50400 seconds) until end of day
-      expect(mockPipeline.expire).toHaveBeenCalledWith(
-        `rate_limit:${testToken}:${getToday()}`,
-        50400,
-      );
+      expect(mockBatch.expire).toHaveBeenCalledWith(`rate_limit:${testToken}:${getToday()}`, 50400);
     });
   });
 
   describe('Data parsing', () => {
-    test('should handle missing fields in Redis data', async () => {
-      mockRedis.hgetall.mockResolvedValue({
+    test('should handle missing fields in Valkey data', async () => {
+      mockClient.hgetall.mockResolvedValue({
         attemptsCount: '5',
         // missing other fields
       });
@@ -202,7 +198,7 @@ describe('RedisRateLimiter', () => {
     });
 
     test('should handle non-numeric values gracefully', async () => {
-      mockRedis.hgetall.mockResolvedValue({
+      mockClient.hgetall.mockResolvedValue({
         attemptsCount: 'invalid',
         deliveredCount: 'abc',
         errorCount: null,
@@ -217,8 +213,8 @@ describe('RedisRateLimiter', () => {
       expect(status.rateLimits.total).toBe(0);
     });
 
-    test('should handle all fields present in Redis data', async () => {
-      mockRedis.hgetall.mockResolvedValue({
+    test('should handle all fields present in Valkey data', async () => {
+      mockClient.hgetall.mockResolvedValue({
         attemptsCount: '10',
         deliveredCount: '8',
         errorCount: '2',
@@ -233,8 +229,8 @@ describe('RedisRateLimiter', () => {
       expect(status.rateLimits.total).toBe(10);
     });
 
-    test('should handle completely empty Redis response', async () => {
-      mockRedis.hgetall.mockResolvedValue({});
+    test('should handle completely empty Valkey response', async () => {
+      mockClient.hgetall.mockResolvedValue({});
 
       const status = await rateLimiter.checkRateLimit(testToken);
 
@@ -245,19 +241,15 @@ describe('RedisRateLimiter', () => {
     });
 
     test('should handle data fields in recordAttempt response', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 6],
-        [null, 'OK'],
-        [
-          null,
-          {
-            attemptsCount: '6',
-            deliveredCount: '5',
-            errorCount: '1',
-            totalCount: '6',
-          },
-        ],
+      mockClient.exec.mockResolvedValue([
+        6,
+        'OK',
+        {
+          attemptsCount: '6',
+          deliveredCount: '5',
+          errorCount: '1',
+          totalCount: '6',
+        },
       ]);
 
       const status = await rateLimiter.recordAttempt(testToken);
@@ -269,20 +261,16 @@ describe('RedisRateLimiter', () => {
     });
 
     test('should handle data fields in recordSuccess response', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 6],
-        [null, 11],
-        [null, 'OK'],
-        [
-          null,
-          {
-            attemptsCount: '10',
-            deliveredCount: '6',
-            errorCount: '5',
-            totalCount: '11',
-          },
-        ],
+      mockClient.exec.mockResolvedValue([
+        6,
+        11,
+        'OK',
+        {
+          attemptsCount: '10',
+          deliveredCount: '6',
+          errorCount: '5',
+          totalCount: '11',
+        },
       ]);
 
       const rateLimits = await rateLimiter.recordSuccess(testToken);
@@ -294,20 +282,16 @@ describe('RedisRateLimiter', () => {
     });
 
     test('should handle data fields in recordError response', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 3],
-        [null, 8],
-        [null, 'OK'],
-        [
-          null,
-          {
-            attemptsCount: '8',
-            deliveredCount: '5',
-            errorCount: '3',
-            totalCount: '8',
-          },
-        ],
+      mockClient.exec.mockResolvedValue([
+        3,
+        8,
+        'OK',
+        {
+          attemptsCount: '8',
+          deliveredCount: '5',
+          errorCount: '3',
+          totalCount: '8',
+        },
       ]);
 
       const rateLimits = await rateLimiter.recordError(testToken);
@@ -320,37 +304,60 @@ describe('RedisRateLimiter', () => {
   });
 
   describe('Error handling', () => {
-    test('should handle Redis connection errors', async () => {
-      mockRedis.hgetall.mockRejectedValue(new Error('Redis connection failed'));
+    test('should handle Valkey connection errors', async () => {
+      mockClient.hgetall.mockRejectedValue(new Error('Valkey connection failed'));
 
       await expect(rateLimiter.checkRateLimit(testToken)).rejects.toThrow(
-        'Redis connection failed',
+        'Valkey connection failed',
       );
     });
 
-    test('should handle pipeline execution errors', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockRejectedValue(new Error('Pipeline execution failed'));
+    test('should handle atomic batch execution errors', async () => {
+      mockClient.exec.mockRejectedValue(new Error('Atomic batch execution failed'));
 
       await expect(rateLimiter.recordAttempt(testToken)).rejects.toThrow(
-        'Pipeline execution failed',
+        'Atomic batch execution failed',
       );
     });
   });
 
-  describe('Connection management', () => {
-    test('should close Redis connection', async () => {
-      mockRedis.quit.mockResolvedValue('OK');
+  describe('Atomic batch operations', () => {
+    test('should use atomic ClusterBatch for rate limiting operations', async () => {
+      mockClient.exec.mockResolvedValue([
+        1,
+        'OK',
+        { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' },
+      ]);
 
+      await rateLimiter.recordAttempt(testToken);
+
+      // The ClusterBatch mock already verifies isAtomic is true in the beforeEach
+      expect(ClusterBatch).toHaveBeenCalledWith(true);
+    });
+  });
+
+  describe('Connection management', () => {
+    test('should close Valkey connection', async () => {
+      mockClient.close.mockResolvedValue();
+
+      // Need to connect first before closing
+      await rateLimiter.connect();
       await rateLimiter.close();
 
-      expect(mockRedis.quit).toHaveBeenCalled();
+      expect(mockClient.close).toHaveBeenCalled();
+    });
+
+    test('should connect only once', async () => {
+      await rateLimiter.connect();
+      await rateLimiter.connect();
+
+      expect(GlideClusterClient.createClient).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('Rate limit edge cases', () => {
     test('should handle negative remaining count', async () => {
-      mockRedis.hgetall.mockResolvedValue({
+      mockClient.hgetall.mockResolvedValue({
         attemptsCount: '10',
         deliveredCount: '200', // More than max allowed
         errorCount: '0',
@@ -364,7 +371,7 @@ describe('RedisRateLimiter', () => {
     });
 
     test('should calculate positive remaining count correctly', async () => {
-      mockRedis.hgetall.mockResolvedValue({
+      mockClient.hgetall.mockResolvedValue({
         attemptsCount: '50',
         deliveredCount: '50',
         errorCount: '0',
@@ -378,7 +385,7 @@ describe('RedisRateLimiter', () => {
     });
 
     test('resetsAt should show next day midnight', async () => {
-      mockRedis.hgetall.mockResolvedValue({});
+      mockClient.hgetall.mockResolvedValue({});
 
       const status = await rateLimiter.checkRateLimit(testToken);
 
@@ -393,7 +400,7 @@ describe('RedisRateLimiter', () => {
       const token2 = 'token-2';
 
       // Set up different responses for different tokens
-      mockRedis.hgetall.mockImplementation((key) => {
+      mockClient.hgetall.mockImplementation((key) => {
         if (key.includes(token1)) {
           return Promise.resolve({
             attemptsCount: '5',
@@ -425,60 +432,53 @@ describe('RedisRateLimiter', () => {
   describe('Date boundary handling', () => {
     test('should use correct date at year boundary', async () => {
       jest.setSystemTime(new Date('2023-12-31T23:59:59Z'));
-      mockRedis.hgetall.mockResolvedValue({});
+      mockClient.hgetall.mockResolvedValue({});
 
       await rateLimiter.checkRateLimit(testToken);
 
-      expect(mockRedis.hgetall).toHaveBeenCalledWith(`rate_limit:${testToken}:20231231`);
+      expect(mockClient.hgetall).toHaveBeenCalledWith(`rate_limit:${testToken}:20231231`);
     });
 
     test('should calculate correct TTL near midnight', async () => {
       jest.setSystemTime(new Date('2024-01-01T23:59:00Z'));
 
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 1],
-        [null, 'OK'],
-        [null, { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' }],
+      mockClient.exec.mockResolvedValue([
+        1,
+        'OK',
+        { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' },
       ]);
 
       await rateLimiter.recordAttempt(testToken);
 
       // 1 minute until midnight = 60 seconds
-      expect(mockPipeline.expire).toHaveBeenCalledWith(`rate_limit:${testToken}:${getToday()}`, 60);
+      expect(mockBatch.expire).toHaveBeenCalledWith(`rate_limit:${testToken}:${getToday()}`, 60);
     });
   });
 
-  describe('Redis connection and retry strategy', () => {
-    test('should initialize with custom Redis host and port', () => {
-      const customHost = 'redis.example.com';
+  describe('Valkey connection configuration', () => {
+    test('should initialize with custom Valkey host and port', async () => {
+      const customHost = 'valkey.example.com';
       const customPort = 6380;
 
       // Create a new instance with custom host and port
-      new RedisRateLimiter(maxNotificationsPerDay, false, customHost, customPort);
+      const customRateLimiter = new ValkeyRateLimiter(
+        maxNotificationsPerDay,
+        false,
+        customHost,
+        customPort,
+      );
+      await customRateLimiter.connect();
 
-      expect(Redis).toHaveBeenCalledWith({
-        host: customHost,
-        port: customPort,
-        retryStrategy: expect.any(Function),
+      expect(GlideClusterClient.createClient).toHaveBeenCalledWith({
+        addresses: [{ host: customHost, port: customPort }],
+        requestTimeout: 500,
+        clientName: 'RateLimiterClient',
       });
-    });
-
-    test('should have proper retry strategy', () => {
-      // retryStrategyFn was captured during beforeEach
-      expect(retryStrategyFn).toBeDefined();
-
-      // Test retry strategy with different attempt counts
-      expect(retryStrategyFn(1)).toBe(50); // 1 * 50 = 50
-      expect(retryStrategyFn(10)).toBe(500); // 10 * 50 = 500
-      expect(retryStrategyFn(40)).toBe(2000); // 40 * 50 = 2000 (capped)
-      expect(retryStrategyFn(50)).toBe(2000); // 50 * 50 = 2500 -> capped at 2000
-      expect(retryStrategyFn(100)).toBe(2000); // 100 * 50 = 5000 -> capped at 2000
     });
 
     test('should handle debug parameter', () => {
       // Create instance with debug enabled
-      const debugRateLimiter = new RedisRateLimiter(maxNotificationsPerDay, true);
+      const debugRateLimiter = new ValkeyRateLimiter(maxNotificationsPerDay, true);
       expect(debugRateLimiter.debug).toBe(true);
 
       // Default instance should have debug disabled
@@ -487,17 +487,18 @@ describe('RedisRateLimiter', () => {
   });
 
   describe('Constructor defaults', () => {
-    test('should use default Redis connection parameters', () => {
+    test('should use default Valkey connection parameters', async () => {
       // Clear previous mock calls
-      Redis.mockClear();
+      GlideClusterClient.createClient.mockClear();
 
       // Create instance without specifying host/port
-      new RedisRateLimiter(maxNotificationsPerDay);
+      const defaultRateLimiter = new ValkeyRateLimiter(maxNotificationsPerDay);
+      await defaultRateLimiter.connect();
 
-      expect(Redis).toHaveBeenCalledWith({
-        host: 'localhost',
-        port: 6379,
-        retryStrategy: expect.any(Function),
+      expect(GlideClusterClient.createClient).toHaveBeenCalledWith({
+        addresses: [{ host: 'localhost', port: 6379 }],
+        requestTimeout: 500,
+        clientName: 'RateLimiterClient',
       });
     });
   });
@@ -505,19 +506,15 @@ describe('RedisRateLimiter', () => {
   describe('_getRateLimitsObject edge cases', () => {
     test('should handle doc with zero values', async () => {
       // Create a scenario where _getRateLimitsObject is called with all zeros
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 1],
-        [null, 'OK'],
-        [
-          null,
-          {
-            attemptsCount: '0',
-            deliveredCount: '0',
-            errorCount: '0',
-            totalCount: '0',
-          },
-        ],
+      mockClient.exec.mockResolvedValue([
+        1,
+        'OK',
+        {
+          attemptsCount: '0',
+          deliveredCount: '0',
+          errorCount: '0',
+          totalCount: '0',
+        },
       ]);
 
       const status = await rateLimiter.recordAttempt(testToken);
@@ -529,21 +526,17 @@ describe('RedisRateLimiter', () => {
       expect(status.rateLimits.total).toBe(0);
     });
 
-    test('should handle empty strings in pipeline results', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 1],
-        [null, 1],
-        [null, 'OK'],
-        [
-          null,
-          {
-            attemptsCount: '',
-            deliveredCount: '',
-            errorCount: '',
-            totalCount: '',
-          },
-        ],
+    test('should handle empty strings in batch results', async () => {
+      mockClient.exec.mockResolvedValue([
+        1,
+        1,
+        'OK',
+        {
+          attemptsCount: '',
+          deliveredCount: '',
+          errorCount: '',
+          totalCount: '',
+        },
       ]);
 
       const rateLimits = await rateLimiter.recordSuccess(testToken);
@@ -554,17 +547,13 @@ describe('RedisRateLimiter', () => {
       expect(rateLimits.total).toBe(0);
     });
 
-    test('should handle missing fields in recordAttempt pipeline result', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 1],
-        [null, 'OK'],
-        [
-          null,
-          {
-            // All fields missing - tests the || '0' branches
-          },
-        ],
+    test('should handle missing fields in recordAttempt batch result', async () => {
+      mockClient.exec.mockResolvedValue([
+        1,
+        'OK',
+        {
+          // All fields missing - tests the || '0' branches
+        },
       ]);
 
       const status = await rateLimiter.recordAttempt(testToken);
@@ -575,18 +564,14 @@ describe('RedisRateLimiter', () => {
       expect(status.rateLimits.total).toBe(0);
     });
 
-    test('should handle missing fields in recordError pipeline result', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 1],
-        [null, 1],
-        [null, 'OK'],
-        [
-          null,
-          {
-            // All fields missing - tests the || '0' branches
-          },
-        ],
+    test('should handle missing fields in recordError batch result', async () => {
+      mockClient.exec.mockResolvedValue([
+        1,
+        1,
+        'OK',
+        {
+          // All fields missing - tests the || '0' branches
+        },
       ]);
 
       const rateLimits = await rateLimiter.recordError(testToken);
@@ -597,21 +582,17 @@ describe('RedisRateLimiter', () => {
       expect(rateLimits.total).toBe(0);
     });
 
-    test('should handle undefined values in recordSuccess pipeline result', async () => {
-      const mockPipeline = mockRedis.pipeline();
-      mockPipeline.exec.mockResolvedValue([
-        [null, 1],
-        [null, 1],
-        [null, 'OK'],
-        [
-          null,
-          {
-            attemptsCount: undefined,
-            deliveredCount: undefined,
-            errorCount: undefined,
-            totalCount: undefined,
-          },
-        ],
+    test('should handle undefined values in recordSuccess batch result', async () => {
+      mockClient.exec.mockResolvedValue([
+        1,
+        1,
+        'OK',
+        {
+          attemptsCount: undefined,
+          deliveredCount: undefined,
+          errorCount: undefined,
+          totalCount: undefined,
+        },
       ]);
 
       const rateLimits = await rateLimiter.recordSuccess(testToken);

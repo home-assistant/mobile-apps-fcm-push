@@ -1,9 +1,9 @@
 'use strict';
 
 const FirestoreRateLimiter = require('./firestore-rate-limiter');
-const RedisRateLimiter = require('./redis-rate-limiter');
+const ValkeyRateLimiter = require('./valkey-rate-limiter');
 
 module.exports = {
   FirestoreRateLimiter,
-  RedisRateLimiter,
+  ValkeyRateLimiter,
 };
