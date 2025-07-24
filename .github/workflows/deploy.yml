@@ -82,6 +82,6 @@ jobs:
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@v14.10.1
         with:
-          args: deploy --only hoosting
+          args: deploy --only hosting
         env:
           GCP_SA_KEY: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
