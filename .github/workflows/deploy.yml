@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy-functions:
-    if: ${{ secrets.VPC_CONNECTOR != '' }}
+    if: ${{ secrets.VPC_CONNECTOR }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -42,7 +42,7 @@ jobs:
             --timeout=10s
 
   deploy-hosting:
-    if: ${{ secrets.VPC_CONNECTOR != '' }}
+    if: ${{ secrets.VPC_CONNECTOR }}
     needs: deploy-functions
     runs-on: ubuntu-latest
     steps:
@@ -56,7 +56,7 @@ jobs:
           GCP_SA_KEY: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
 
   deploy-firestore:
-    if: ${{ secrets.VPC_CONNECTOR == '' }}
+    if: ${{ !secrets.VPC_CONNECTOR }}
     runs-on: ubuntu-latest
 
     # Steps represent a sequence of tasks that will be executed as part of the job
