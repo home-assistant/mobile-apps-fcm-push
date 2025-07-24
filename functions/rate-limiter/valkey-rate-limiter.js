@@ -18,6 +18,42 @@ const { GlideClusterClient, ClusterBatch } = require('@valkey/valkey-glide');
  */
 
 /**
+ * Converts the hgetall response array into an object.
+ * Valkey returns hgetall as an array of objects
+ *
+ * @param {Array<Record<string, string>>|any} data - The raw response from hgetall
+ * @returns {Record<string, string>} The parsed object
+ */
+function parseHgetallResponse(data) {
+  if (!data || !Array.isArray(data)) {
+    return /** @type {Record<string, string>} */ ({});
+  }
+
+  const result = /** @type {Record<string, string>} */ ({});
+  data.forEach((item) => {
+    if (item && typeof item === 'object') {
+      Object.assign(result, item);
+    }
+  });
+  return result;
+}
+
+/**
+ * Parses the hash data into a RateLimitData object.
+ *
+ * @param {Record<string, string>} data - The parsed hash data
+ * @returns {RateLimitData} The rate limit data
+ */
+function parseRateLimitData(data) {
+  return {
+    attemptsCount: parseInt(data['attemptsCount'] || '0', 10),
+    deliveredCount: parseInt(data['deliveredCount'] || '0', 10),
+    errorCount: parseInt(data['errorCount'] || '0', 10),
+    totalCount: parseInt(data['totalCount'] || '0', 10),
+  };
+}
+
+/**
  * Manages rate limiting for push notifications using Valkey as the backend.
  * Uses atomic Valkey batch operations to ensure precise rate limit counting
  * and prevent race conditions when detecting exact threshold matches.
@@ -41,7 +77,7 @@ class ValkeyRateLimiter {
   }
 
   async connect() {
-    if (this.connected) {
+    if (this.connected && this.client) {
       return; // Already connected
     }
     this.client = await GlideClusterClient.createClient({
@@ -88,13 +124,8 @@ class ValkeyRateLimiter {
     await this.connect();
     const key = this._getValkeyKey(token);
     const data = await this.client.hgetall(key);
-
-    const docData = {
-      attemptsCount: parseInt(data.attemptsCount || '0', 10),
-      deliveredCount: parseInt(data.deliveredCount || '0', 10),
-      errorCount: parseInt(data.errorCount || '0', 10),
-      totalCount: parseInt(data.totalCount || '0', 10),
-    };
+    const parsedData = parseHgetallResponse(data);
+    const docData = parseRateLimitData(parsedData);
 
     const isRateLimited = docData.deliveredCount >= this.maxNotificationsPerDay;
     const shouldSendRateLimitNotification = docData.deliveredCount === this.maxNotificationsPerDay;
@@ -120,20 +151,15 @@ class ValkeyRateLimiter {
 
     // Use Valkey batch with atomic operations to ensure accurate rate limit counting
     const batch = new ClusterBatch(true);
-    batch.hincrby(key, 'attemptsCount', 1);
+    batch.hincrBy(key, 'attemptsCount', 1);
     batch.expire(key, this._getTTLSeconds());
     batch.hgetall(key);
 
     // Execute with raiseOnError true to stop on first error
     const results = await this.client.exec(batch, true);
     const [, , data] = results;
-
-    const docData = {
-      attemptsCount: parseInt(data.attemptsCount || '0', 10),
-      deliveredCount: parseInt(data.deliveredCount || '0', 10),
-      errorCount: parseInt(data.errorCount || '0', 10),
-      totalCount: parseInt(data.totalCount || '0', 10),
-    };
+    const parsedData = parseHgetallResponse(data);
+    const docData = parseRateLimitData(parsedData);
 
     const isRateLimited = docData.deliveredCount >= this.maxNotificationsPerDay;
     const shouldSendRateLimitNotification = docData.deliveredCount === this.maxNotificationsPerDay;
@@ -161,21 +187,16 @@ class ValkeyRateLimiter {
 
     // Use Valkey batch with atomic operations to ensure accurate rate limit counting
     const batch = new ClusterBatch(true);
-    batch.hincrby(key, 'deliveredCount', 1);
-    batch.hincrby(key, 'totalCount', 1);
+    batch.hincrBy(key, 'deliveredCount', 1);
+    batch.hincrBy(key, 'totalCount', 1);
     batch.expire(key, this._getTTLSeconds());
     batch.hgetall(key);
 
     // Execute with raiseOnError true to stop on first error
     const results = await this.client.exec(batch, true);
     const [, , , data] = results;
-
-    const docData = {
-      attemptsCount: parseInt(data.attemptsCount || '0', 10),
-      deliveredCount: parseInt(data.deliveredCount || '0', 10),
-      errorCount: parseInt(data.errorCount || '0', 10),
-      totalCount: parseInt(data.totalCount || '0', 10),
-    };
+    const parsedData = parseHgetallResponse(data);
+    const docData = parseRateLimitData(parsedData);
 
     return this._getRateLimitsObject(docData);
   }
@@ -196,21 +217,16 @@ class ValkeyRateLimiter {
 
     // Use Valkey batch with atomic operations to ensure accurate rate limit counting
     const batch = new ClusterBatch(true);
-    batch.hincrby(key, 'errorCount', 1);
-    batch.hincrby(key, 'totalCount', 1);
+    batch.hincrBy(key, 'errorCount', 1);
+    batch.hincrBy(key, 'totalCount', 1);
     batch.expire(key, this._getTTLSeconds());
     batch.hgetall(key);
 
     // Execute with raiseOnError true to stop on first error
     const results = await this.client.exec(batch, true);
     const [, , , data] = results;
-
-    const docData = {
-      attemptsCount: parseInt(data.attemptsCount || '0', 10),
-      deliveredCount: parseInt(data.deliveredCount || '0', 10),
-      errorCount: parseInt(data.errorCount || '0', 10),
-      totalCount: parseInt(data.totalCount || '0', 10),
-    };
+    const parsedData = parseHgetallResponse(data);
+    const docData = parseRateLimitData(parsedData);
 
     return this._getRateLimitsObject(docData);
   }

@@ -23,6 +23,6 @@ jobs:
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@v14.10.1
         with:
-          args: deploy
+          args: deploy --vpc-connector ${{ secrets.VPC_CONNECTOR }}
         env:
           GCP_SA_KEY: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}

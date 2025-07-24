@@ -12,6 +12,11 @@ jest.mock('@valkey/valkey-glide', () => ({
 
 const ValkeyRateLimiter = require('../../rate-limiter/valkey-rate-limiter');
 
+// Helper to convert object to array format that hgetall returns
+function objectToHgetallArray(obj) {
+  return Object.entries(obj).map(([key, value]) => ({ [key]: value }));
+}
+
 describe('ValkeyRateLimiter', () => {
   let mockClient;
   let mockBatch;
@@ -35,7 +40,7 @@ describe('ValkeyRateLimiter', () => {
 
     // Mock ClusterBatch
     mockBatch = {
-      hincrby: jest.fn().mockReturnThis(),
+      hincrBy: jest.fn().mockReturnThis(),
       expire: jest.fn().mockReturnThis(),
       hgetall: jest.fn().mockReturnThis(),
     };
@@ -58,7 +63,7 @@ describe('ValkeyRateLimiter', () => {
 
   describe('Basic functionality', () => {
     test('should initialize with zero counts', async () => {
-      mockClient.hgetall.mockResolvedValue({});
+      mockClient.hgetall.mockResolvedValue([]);
 
       const status = await rateLimiter.checkRateLimit(testToken);
 
@@ -79,12 +84,17 @@ describe('ValkeyRateLimiter', () => {
       mockClient.exec.mockResolvedValue([
         1,
         'OK',
-        { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' },
+        objectToHgetallArray({
+          attemptsCount: '1',
+          deliveredCount: '0',
+          errorCount: '0',
+          totalCount: '0',
+        }),
       ]);
 
       const status = await rateLimiter.recordAttempt(testToken);
 
-      expect(mockBatch.hincrby).toHaveBeenCalledWith(
+      expect(mockBatch.hincrBy).toHaveBeenCalledWith(
         `rate_limit:${testToken}:${getToday()}`,
         'attemptsCount',
         1,
@@ -98,17 +108,22 @@ describe('ValkeyRateLimiter', () => {
         1,
         1,
         'OK',
-        { attemptsCount: '1', deliveredCount: '1', errorCount: '0', totalCount: '1' },
+        objectToHgetallArray({
+          attemptsCount: '1',
+          deliveredCount: '1',
+          errorCount: '0',
+          totalCount: '1',
+        }),
       ]);
 
       const rateLimits = await rateLimiter.recordSuccess(testToken);
 
-      expect(mockBatch.hincrby).toHaveBeenCalledWith(
+      expect(mockBatch.hincrBy).toHaveBeenCalledWith(
         `rate_limit:${testToken}:${getToday()}`,
         'deliveredCount',
         1,
       );
-      expect(mockBatch.hincrby).toHaveBeenCalledWith(
+      expect(mockBatch.hincrBy).toHaveBeenCalledWith(
         `rate_limit:${testToken}:${getToday()}`,
         'totalCount',
         1,
@@ -122,17 +137,22 @@ describe('ValkeyRateLimiter', () => {
         1,
         1,
         'OK',
-        { attemptsCount: '1', deliveredCount: '0', errorCount: '1', totalCount: '1' },
+        objectToHgetallArray({
+          attemptsCount: '1',
+          deliveredCount: '0',
+          errorCount: '1',
+          totalCount: '1',
+        }),
       ]);
 
       const rateLimits = await rateLimiter.recordError(testToken);
 
-      expect(mockBatch.hincrby).toHaveBeenCalledWith(
+      expect(mockBatch.hincrBy).toHaveBeenCalledWith(
         `rate_limit:${testToken}:${getToday()}`,
         'errorCount',
         1,
       );
-      expect(mockBatch.hincrby).toHaveBeenCalledWith(
+      expect(mockBatch.hincrBy).toHaveBeenCalledWith(
         `rate_limit:${testToken}:${getToday()}`,
         'totalCount',
         1,
@@ -144,12 +164,14 @@ describe('ValkeyRateLimiter', () => {
     test('should enforce rate limit', async () => {
       const lowLimitRateLimiter = new ValkeyRateLimiter(5); // Low limit for testing
 
-      mockClient.hgetall.mockResolvedValue({
-        attemptsCount: '5',
-        deliveredCount: '5',
-        errorCount: '0',
-        totalCount: '5',
-      });
+      mockClient.hgetall.mockResolvedValue(
+        objectToHgetallArray({
+          attemptsCount: '5',
+          deliveredCount: '5',
+          errorCount: '0',
+          totalCount: '5',
+        }),
+      );
 
       const status = await lowLimitRateLimiter.checkRateLimit(testToken);
 
@@ -172,7 +194,12 @@ describe('ValkeyRateLimiter', () => {
       mockClient.exec.mockResolvedValue([
         1,
         'OK',
-        { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' },
+        objectToHgetallArray({
+          attemptsCount: '1',
+          deliveredCount: '0',
+          errorCount: '0',
+          totalCount: '0',
+        }),
       ]);
 
       await rateLimiter.recordAttempt(testToken);
@@ -184,10 +211,12 @@ describe('ValkeyRateLimiter', () => {
 
   describe('Data parsing', () => {
     test('should handle missing fields in Valkey data', async () => {
-      mockClient.hgetall.mockResolvedValue({
-        attemptsCount: '5',
-        // missing other fields
-      });
+      mockClient.hgetall.mockResolvedValue(
+        objectToHgetallArray({
+          attemptsCount: '5',
+          // missing other fields
+        }),
+      );
 
       const status = await rateLimiter.checkRateLimit(testToken);
 
@@ -198,12 +227,14 @@ describe('ValkeyRateLimiter', () => {
     });
 
     test('should handle non-numeric values gracefully', async () => {
-      mockClient.hgetall.mockResolvedValue({
-        attemptsCount: 'invalid',
-        deliveredCount: 'abc',
-        errorCount: null,
-        totalCount: undefined,
-      });
+      mockClient.hgetall.mockResolvedValue(
+        objectToHgetallArray({
+          attemptsCount: 'invalid',
+          deliveredCount: 'abc',
+          errorCount: null,
+          totalCount: undefined,
+        }),
+      );
 
       const status = await rateLimiter.checkRateLimit(testToken);
 
@@ -214,12 +245,14 @@ describe('ValkeyRateLimiter', () => {
     });
 
     test('should handle all fields present in Valkey data', async () => {
-      mockClient.hgetall.mockResolvedValue({
-        attemptsCount: '10',
-        deliveredCount: '8',
-        errorCount: '2',
-        totalCount: '10',
-      });
+      mockClient.hgetall.mockResolvedValue(
+        objectToHgetallArray({
+          attemptsCount: '10',
+          deliveredCount: '8',
+          errorCount: '2',
+          totalCount: '10',
+        }),
+      );
 
       const status = await rateLimiter.checkRateLimit(testToken);
 
@@ -244,12 +277,12 @@ describe('ValkeyRateLimiter', () => {
       mockClient.exec.mockResolvedValue([
         6,
         'OK',
-        {
+        objectToHgetallArray({
           attemptsCount: '6',
           deliveredCount: '5',
           errorCount: '1',
           totalCount: '6',
-        },
+        }),
       ]);
 
       const status = await rateLimiter.recordAttempt(testToken);
@@ -265,12 +298,12 @@ describe('ValkeyRateLimiter', () => {
         6,
         11,
         'OK',
-        {
+        objectToHgetallArray({
           attemptsCount: '10',
           deliveredCount: '6',
           errorCount: '5',
           totalCount: '11',
-        },
+        }),
       ]);
 
       const rateLimits = await rateLimiter.recordSuccess(testToken);
@@ -286,12 +319,12 @@ describe('ValkeyRateLimiter', () => {
         3,
         8,
         'OK',
-        {
+        objectToHgetallArray({
           attemptsCount: '8',
           deliveredCount: '5',
           errorCount: '3',
           totalCount: '8',
-        },
+        }),
       ]);
 
       const rateLimits = await rateLimiter.recordError(testToken);
@@ -326,7 +359,12 @@ describe('ValkeyRateLimiter', () => {
       mockClient.exec.mockResolvedValue([
         1,
         'OK',
-        { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' },
+        objectToHgetallArray({
+          attemptsCount: '1',
+          deliveredCount: '0',
+          errorCount: '0',
+          totalCount: '0',
+        }),
       ]);
 
       await rateLimiter.recordAttempt(testToken);
@@ -357,12 +395,14 @@ describe('ValkeyRateLimiter', () => {
 
   describe('Rate limit edge cases', () => {
     test('should handle negative remaining count', async () => {
-      mockClient.hgetall.mockResolvedValue({
-        attemptsCount: '10',
-        deliveredCount: '200', // More than max allowed
-        errorCount: '0',
-        totalCount: '200',
-      });
+      mockClient.hgetall.mockResolvedValue(
+        objectToHgetallArray({
+          attemptsCount: '10',
+          deliveredCount: '200', // More than max allowed
+          errorCount: '0',
+          totalCount: '200',
+        }),
+      );
 
       const status = await rateLimiter.checkRateLimit(testToken);
 
@@ -371,12 +411,14 @@ describe('ValkeyRateLimiter', () => {
     });
 
     test('should calculate positive remaining count correctly', async () => {
-      mockClient.hgetall.mockResolvedValue({
-        attemptsCount: '50',
-        deliveredCount: '50',
-        errorCount: '0',
-        totalCount: '50',
-      });
+      mockClient.hgetall.mockResolvedValue(
+        objectToHgetallArray({
+          attemptsCount: '50',
+          deliveredCount: '50',
+          errorCount: '0',
+          totalCount: '50',
+        }),
+      );
 
       const status = await rateLimiter.checkRateLimit(testToken);
 
@@ -402,21 +444,25 @@ describe('ValkeyRateLimiter', () => {
       // Set up different responses for different tokens
       mockClient.hgetall.mockImplementation((key) => {
         if (key.includes(token1)) {
-          return Promise.resolve({
-            attemptsCount: '5',
-            deliveredCount: '3',
-            errorCount: '2',
-            totalCount: '5',
-          });
+          return Promise.resolve(
+            objectToHgetallArray({
+              attemptsCount: '5',
+              deliveredCount: '3',
+              errorCount: '2',
+              totalCount: '5',
+            }),
+          );
         } else if (key.includes(token2)) {
-          return Promise.resolve({
-            attemptsCount: '10',
-            deliveredCount: '8',
-            errorCount: '2',
-            totalCount: '10',
-          });
+          return Promise.resolve(
+            objectToHgetallArray({
+              attemptsCount: '10',
+              deliveredCount: '8',
+              errorCount: '2',
+              totalCount: '10',
+            }),
+          );
         }
-        return Promise.resolve({});
+        return Promise.resolve([]);
       });
 
       const status1 = await rateLimiter.checkRateLimit(token1);
@@ -445,7 +491,12 @@ describe('ValkeyRateLimiter', () => {
       mockClient.exec.mockResolvedValue([
         1,
         'OK',
-        { attemptsCount: '1', deliveredCount: '0', errorCount: '0', totalCount: '0' },
+        objectToHgetallArray({
+          attemptsCount: '1',
+          deliveredCount: '0',
+          errorCount: '0',
+          totalCount: '0',
+        }),
       ]);
 
       await rateLimiter.recordAttempt(testToken);
@@ -509,12 +560,12 @@ describe('ValkeyRateLimiter', () => {
       mockClient.exec.mockResolvedValue([
         1,
         'OK',
-        {
+        objectToHgetallArray({
           attemptsCount: '0',
           deliveredCount: '0',
           errorCount: '0',
           totalCount: '0',
-        },
+        }),
       ]);
 
       const status = await rateLimiter.recordAttempt(testToken);
@@ -531,12 +582,12 @@ describe('ValkeyRateLimiter', () => {
         1,
         1,
         'OK',
-        {
+        objectToHgetallArray({
           attemptsCount: '',
           deliveredCount: '',
           errorCount: '',
           totalCount: '',
-        },
+        }),
       ]);
 
       const rateLimits = await rateLimiter.recordSuccess(testToken);
@@ -551,9 +602,9 @@ describe('ValkeyRateLimiter', () => {
       mockClient.exec.mockResolvedValue([
         1,
         'OK',
-        {
+        objectToHgetallArray({
           // All fields missing - tests the || '0' branches
-        },
+        }),
       ]);
 
       const status = await rateLimiter.recordAttempt(testToken);
@@ -569,9 +620,9 @@ describe('ValkeyRateLimiter', () => {
         1,
         1,
         'OK',
-        {
+        objectToHgetallArray({
           // All fields missing - tests the || '0' branches
-        },
+        }),
       ]);
 
       const rateLimits = await rateLimiter.recordError(testToken);
@@ -587,12 +638,12 @@ describe('ValkeyRateLimiter', () => {
         1,
         1,
         'OK',
-        {
+        objectToHgetallArray({
           attemptsCount: undefined,
           deliveredCount: undefined,
           errorCount: undefined,
           totalCount: undefined,
-        },
+        }),
       ]);
 
       const rateLimits = await rateLimiter.recordSuccess(testToken);

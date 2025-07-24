@@ -4,6 +4,7 @@
   "scripts": {
     "lint": "eslint .",
     "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
     "serve": "firebase serve --only functions",
     "shell": "firebase functions:shell",
     "start": "npm run shell",
@@ -19,10 +20,12 @@
     "firebase-functions": "^5.0.1"
   },
   "devDependencies": {
+    "@types/node": "^24.1.0",
     "eslint": "^8.16.0",
     "eslint-plugin-promise": "^6.0.0",
     "jest": "^29.7.0",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "typescript": "^5.8.3"
   },
   "engines": {
     "node": "20"
