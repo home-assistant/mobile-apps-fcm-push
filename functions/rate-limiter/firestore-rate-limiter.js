@@ -9,6 +9,7 @@ const db = getFirestore();
 /**
  * @typedef {import('./util').RateLimits} RateLimits
  * @typedef {import('./util').RateLimitStatus} RateLimitStatus
+ * @typedef {import('@google-cloud/firestore').DocumentData} DocumentData
  */
 
 /**
@@ -213,7 +214,7 @@ class FirestoreRateLimiter {
    * Converts internal rate limit data to a user-friendly format.
    *
    * @private
-   * @param {FirestoreRateLimitData} doc - The internal rate limit data
+   * @param {DocumentData} doc - The internal rate limit data
    * @returns {RateLimits} User-friendly rate limit statistics
    */
   _getRateLimitsObject(doc) {
