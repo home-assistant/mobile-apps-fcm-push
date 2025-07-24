@@ -259,7 +259,7 @@ class ValkeyRateLimiter {
    */
   async close() {
     if (this.client) {
-      this.client.close();
+      await this.client.close();
       this.connected = false;
       this.client = null;
     }
