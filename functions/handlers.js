@@ -79,7 +79,7 @@ async function handleRequest(req, res, payloadHandler) {
 
     if (attemptInfo.shouldSendRateLimitNotification) {
       try {
-        await sendRateLimitedNotification(token);
+        await sendRateLimitedNotification(req, token);
       } catch (err) {
         handleError(req, res, payload, 'sendRateLimitNotification', err, false);
       }
