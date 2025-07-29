@@ -40,8 +40,43 @@ jobs:
             --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
             --timeout=10s
 
+  deploy-cloud-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Google Cloud
+        run: gcloud auth configure-docker gcr.io
+
+      - name: Build Container Image
+        run: |
+          cd functions
+          gcloud builds submit --tag gcr.io/home-assistant-mobile-apps/mobile-push
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy mobile-push \
+            --image gcr.io/home-assistant-mobile-apps/mobile-push \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
+            --timeout=10s \
+            --memory=512Mi \
+            --cpu=1 \
+            --concurrency=400 \
+            --max-instances=30
+
   deploy-hosting:
-    needs: deploy-functions
+    needs: [deploy-functions, deploy-cloud-run]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
