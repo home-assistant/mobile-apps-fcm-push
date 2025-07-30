@@ -52,7 +52,6 @@ jobs:
           flags: |
             --allow-unauthenticated
             --vpc-connector=${{ secrets.VPC_CONNECTOR }}
-            --timeout=10s
 
   deploy-hosting:
     needs: deploy-cloud-run
