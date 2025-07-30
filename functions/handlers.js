@@ -11,7 +11,7 @@ const usingCloudFunctions = process.env.FUNCTION_TARGET !== undefined;
 
 const messaging = getMessaging();
 const logging = new Logging();
-const debug = process.env.DEBUG === 'true' ? true : false;
+const debug = process.env.DEBUG?.toLowerCase().trim() === 'true';
 
 // Use Valkey rate limiter if Valkey config is available, otherwise use Firestore
 let rateLimiter;
