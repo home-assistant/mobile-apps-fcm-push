@@ -15,11 +15,17 @@
     "rewrites": [
       {
         "source": "/api/sendPushNotification",
-        "function": "sendPushNotification"
+        "run": {
+          "serviceId": "mobile-push",
+          "region": "us-central1"
+        }
       },
       {
         "source": "/api/sendPush/android/v1",
-        "function": "androidV1"
+        "run": {
+          "serviceId": "mobile-push",
+          "region": "us-central1"
+        }
       },
       {
         "source": "/api/sendPush/iOS/v1",
@@ -27,7 +33,10 @@
       },
       {
         "source": "/api/checkRateLimits",
-        "function": "checkRateLimits"
+        "run": {
+          "serviceId": "mobile-push",
+          "region": "us-central1"
+        }
       },
       {
         "source": "**",
