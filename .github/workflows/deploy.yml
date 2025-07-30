@@ -6,42 +6,10 @@ on:
       - main
 
 jobs:
-  deploy-functions:
+  build-container:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        function: [sendPushNotification, androidV1, iOSV1, checkRateLimits]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: NPM Install
-        run: |
-          cd functions
-          npm install
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Deploy ${{ matrix.function }}
-        run: |
-          cd functions
-          gcloud functions deploy ${{ matrix.function }} \
-            --source=. \
-            --entry-point=${{ matrix.function }} \
-            --runtime=nodejs20 \
-            --trigger-http \
-            --allow-unauthenticated \
-            --region=us-central1 \
-            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
-            --timeout=10s
-
-  deploy-cloud-run:
-    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build.outputs.image }}
     steps:
       - uses: actions/checkout@v4
 
@@ -57,21 +25,37 @@ jobs:
         run: gcloud auth configure-docker gcr.io
 
       - name: Build Container Image
+        id: build
         run: |
           cd functions
-          gcloud builds submit --tag gcr.io/home-assistant-mobile-apps/mobile-push
+          IMAGE_TAG="gcr.io/home-assistant-mobile-apps/mobile-push:${{ github.sha }}"
+          gcloud builds submit --tag $IMAGE_TAG
+          echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  deploy-cloud-run:
+    needs: build-container
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
 
       - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy mobile-push \
-            --image gcr.io/home-assistant-mobile-apps/mobile-push \
-            --region us-central1 \
-            --allow-unauthenticated \
-            --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: mobile-push
+          image: ${{ needs.build-container.outputs.image }}
+          region: us-central1
+          flags: |
+            --allow-unauthenticated
+            --vpc-connector=${{ secrets.VPC_CONNECTOR }}
             --timeout=10s
 
   deploy-hosting:
-    needs: [deploy-functions, deploy-cloud-run]
+    needs: deploy-cloud-run
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
