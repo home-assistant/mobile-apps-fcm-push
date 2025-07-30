@@ -65,15 +65,10 @@ jobs:
         run: |
           gcloud run deploy mobile-push \
             --image gcr.io/home-assistant-mobile-apps/mobile-push \
-            --platform managed \
             --region us-central1 \
             --allow-unauthenticated \
             --vpc-connector=${{ secrets.VPC_CONNECTOR }} \
-            --timeout=10s \
-            --memory=512Mi \
-            --cpu=1 \
-            --concurrency=400 \
-            --max-instances=30
+            --timeout=10s
 
   deploy-hosting:
     needs: [deploy-functions, deploy-cloud-run]
