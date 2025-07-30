@@ -7,6 +7,8 @@ const { FirestoreRateLimiter, ValkeyRateLimiter } = require('./rate-limiter');
 const MAX_NOTIFICATIONS_PER_DAY = parseInt(process.env.MAX_NOTIFICATIONS_PER_DAY || '500');
 const REGION = (process.env.REGION || 'us-central1').toLowerCase();
 
+const usingCloudFunctions = process.env.FUNCTION_TARGET !== undefined;
+
 const messaging = getMessaging();
 const logging = new Logging();
 const debug = process.env.DEBUG === 'true' ? true : false;
@@ -222,23 +224,24 @@ function reportError(err, step, req, notificationObj) {
   // https://cloud.google.com/logging/docs/api/ref_v2beta1/rest/v2beta1/MonitoredResource
   const metadata = {
     resource: {
-      type: 'cloud_function',
-      labels: {
-        function_name: process.env.FUNCTION_TARGET,
-        REGION,
-      },
+      type: 'global',
     },
     severity: 'ERROR',
     labels,
   };
 
+  if (usingCloudFunctions) {
+    metadata.resource.type = 'cloud_function';
+    metadata.resource.labels = { function_name: process.env.FUNCTION_TARGET, region: REGION };
+  }
+
   // https://cloud.google.com/error-reporting/reference/rest/v1beta1/ErrorEvent
   const errorEvent = {
     message: err.stack,
     serviceContext: {
-      service: process.env.FUNCTION_TARGET,
-      version: process.env.K_REVISION,
-      resourceType: 'cloud_function',
+      service: usingCloudFunctions ? process.env.FUNCTION_TARGET : 'mobile-push',
+      version: usingCloudFunctions ? process.env.K_REVISION : '1.0.0',
+      resourceType: usingCloudFunctions ? 'cloud_function' : 'cloud_run',
     },
     context: {
       httpRequest: {
@@ -311,7 +314,7 @@ async function sendRateLimitedNotification(req, token) {
   return messaging.send(payload);
 }
 
-function buildLogMetadata(req, additionalData = {}) {
+function buildLogMetadata(req) {
   return {
     resource: { type: 'global' },
     httpRequest: {
@@ -320,7 +323,6 @@ function buildLogMetadata(req, additionalData = {}) {
       userAgent: req.get('user-agent'),
       remoteIp: req.ip,
     },
-    labels: additionalData,
   };
 }
 

@@ -35,29 +35,29 @@ function createCloudFunctionsAdapter(request, reply) {
 // Route handlers
 async function handleAndroidV1(request, reply) {
   const { req, res } = createCloudFunctionsAdapter(request, reply);
-  handleRequest(req, res, android.createPayload);
+  return await handleRequest(req, res, android.createPayload);
 }
 
 async function handleIOSV1(request, reply) {
   const { req, res } = createCloudFunctionsAdapter(request, reply);
-  handleRequest(req, res, ios.createPayload);
+  return handleRequest(req, res, ios.createPayload);
 }
 
 async function handleSendPushNotification(request, reply) {
   const { req, res } = createCloudFunctionsAdapter(request, reply);
-  handleRequest(req, res, legacy.createPayload);
+  return handleRequest(req, res, legacy.createPayload);
 }
 
 async function checkRateLimits(request, reply) {
   const { req, res } = createCloudFunctionsAdapter(request, reply);
-  handleCheckRateLimits(req, res);
+  return handleCheckRateLimits(req, res);
 }
 
 // Register routes
-fastify.post('/androidV1', handleAndroidV1);
-fastify.post('/iOSV1', handleIOSV1);
-fastify.post('/sendPushNotification', handleSendPushNotification);
-fastify.post('/checkRateLimits', checkRateLimits);
+fastify.post('/api/sendPush/android/v1', handleAndroidV1);
+fastify.post('/api/sendPush/iOS/v1', handleIOSV1);
+fastify.post('/api/sendPushNotification', handleSendPushNotification);
+fastify.post('/api/checkRateLimits', checkRateLimits);
 
 // Health check endpoint
 fastify.get('/health', async (request, reply) => {
