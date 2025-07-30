@@ -14,7 +14,7 @@ const region = (functions.config().app && functions.config().app.region) || 'us-
 const regionalFunctions = functions.region(region).runWith({ timeoutSeconds: 10 });
 
 // These must be imported before the handlers to ensure they are initialized correctly
-process.env.DEBUG = isDebug() ? 'true' : 'false';
+process.env.DEBUG = isDebug().toString();
 process.env.REGION = region;
 
 const { handleRequest, handleCheckRateLimits } = require('./handlers');
