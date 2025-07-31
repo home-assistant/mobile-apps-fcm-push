@@ -67,12 +67,12 @@ module.exports = {
           }
 
           if (req.body.data.push) {
-            Object.assign(payload.apns.payload.aps, req.body.data.push);
+            payload.apns.payload.aps = { ...payload.apns.payload.aps, ...req.body.data.push };
           }
 
           if (req.body.data.sound) {
             payload.apns.payload.aps.sound = req.body.data.sound;
-          } else if (req.body.data.push && req.body.data.push.sound) {
+          } else if (req.body.data.push?.sound) {
             payload.apns.payload.aps.sound = req.body.data.push.sound;
           }
 

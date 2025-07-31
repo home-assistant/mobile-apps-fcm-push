@@ -169,7 +169,7 @@ function handleError(req, res, payload = {}, step, incomingError, shouldExit = t
   }
 
   // Handle Firebase Messaging errors with appropriate status codes
-  if (incomingError.code && incomingError.code.startsWith('messaging/')) {
+  if (incomingError.code?.startsWith('messaging/')) {
     const errorCode = incomingError.code.replace('messaging/', '');
 
     // For specific token errors, skip reporting and return immediately

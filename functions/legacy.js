@@ -59,7 +59,7 @@ module.exports = {
         payload.apns.payload.aps = {};
         payload.apns.payload.aps.contentAvailable = true;
         payload.apns.payload.homeassistant = { command: command };
-        if (req.body.data && req.body.data.push && req.body.data.push.badge) {
+        if (req.body.data?.push?.badge) {
           payload.apns.payload.aps.badge = req.body.data.push.badge;
         }
         updateRateLimits = false;
@@ -79,7 +79,7 @@ module.exports = {
       } else if (req.body.message === 'clear_notification') {
         addCommand('clear_notification');
 
-        if (req.body.data && req.body.data.tag) {
+        if (req.body.data?.tag) {
           payload.apns.payload.homeassistant.tag = req.body.data.tag;
         }
 
@@ -106,7 +106,7 @@ module.exports = {
           }
 
           if (req.body.data.push) {
-            Object.assign(payload.apns.payload.aps, req.body.data.push);
+            payload.apns.payload.aps = { ...payload.apns.payload.aps, ...req.body.data.push };
           }
 
           if (req.body.data.actions) {
@@ -116,7 +116,7 @@ module.exports = {
 
           if (req.body.data.sound) {
             payload.apns.payload.aps.sound = req.body.data.sound;
-          } else if (req.body.data.push && req.body.data.push.sound) {
+          } else if (req.body.data.push?.sound) {
             payload.apns.payload.aps.sound = req.body.data.push.sound;
           }
 
