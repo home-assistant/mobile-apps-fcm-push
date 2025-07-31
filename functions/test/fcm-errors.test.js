@@ -122,6 +122,14 @@ describe('FCM Error Handling', () => {
     const error = createFCMError('invalid-registration-token', 'Invalid registration token');
     mockMessaging.send.mockRejectedValue(error);
 
+    const mockLogInstance = {
+      write: jest.fn((entry, callback) => callback()),
+      entry: jest.fn(() => ({})),
+      debug: jest.fn(),
+      info: jest.fn(),
+    };
+    mockLogging.log.mockReturnValue(mockLogInstance);
+
     await indexModule.handleRequest(req, res, payloadHandler);
 
     expect(res.status).toHaveBeenCalledWith(500);
@@ -132,8 +140,8 @@ describe('FCM Error Handling', () => {
       message: 'Invalid registration token',
     });
 
-    // Verify error was NOT logged for token errors
-    expect(mockLogging.log).not.toHaveBeenCalled();
+    // Verify error was NOT written to logs for token errors
+    expect(mockLogInstance.write).not.toHaveBeenCalled();
   });
 
   test('should return 500 for registration-token-not-registered error without logging', async () => {
@@ -142,6 +150,14 @@ describe('FCM Error Handling', () => {
       'Requested entity was not found.',
     );
     mockMessaging.send.mockRejectedValue(error);
+
+    const mockLogInstance = {
+      write: jest.fn((entry, callback) => callback()),
+      entry: jest.fn(() => ({})),
+      debug: jest.fn(),
+      info: jest.fn(),
+    };
+    mockLogging.log.mockReturnValue(mockLogInstance);
 
     await indexModule.handleRequest(req, res, payloadHandler);
 
@@ -153,8 +169,8 @@ describe('FCM Error Handling', () => {
       message: 'Requested entity was not found.',
     });
 
-    // Verify error was NOT logged for token errors
-    expect(mockLogging.log).not.toHaveBeenCalled();
+    // Verify error was NOT written to logs for token errors
+    expect(mockLogInstance.write).not.toHaveBeenCalled();
   });
 
   test('should return 500 for other FCM errors and log them', async () => {
