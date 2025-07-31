@@ -188,6 +188,26 @@ function handleError(req, res, payload = {}, step, incomingError, shouldExit = t
         message: incomingError.message,
       });
     }
+
+    // Handle Android message size limit errors
+    if (
+      errorCode === 'invalid-argument' ||
+      errorCode === 'payload-too-large' ||
+      (incomingError.message &&
+        (incomingError.message.toLowerCase().includes('message is too big') ||
+          incomingError.message.toLowerCase().includes('payload too large')))
+    ) {
+      if (!shouldExit) {
+        return true;
+      }
+
+      return res.status(500).send({
+        errorType: 'PayloadTooLarge',
+        errorCode: errorCode,
+        errorStep: step,
+        message: incomingError.message,
+      });
+    }
   }
 
   // Report all other errors before responding

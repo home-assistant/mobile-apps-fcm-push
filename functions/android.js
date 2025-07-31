@@ -12,7 +12,7 @@ module.exports = {
     if (req.body.data) {
       // Handle the web actions by changing them into a format the app can handle
       // https://www.home-assistant.io/integrations/html5/#actions
-      if (req.body.data.actions) {
+      if (Array.isArray(req.body.data.actions)) {
         req.body.data.actions.forEach((action, i) => {
           const actionIndex = i + 1;
           if (action.action) {

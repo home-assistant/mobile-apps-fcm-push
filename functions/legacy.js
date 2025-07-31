@@ -47,6 +47,9 @@ module.exports = {
     let updateRateLimits = true;
 
     if (req.body.registration_info.webhook_id) {
+      if (!payload.apns.payload) {
+        payload.apns.payload = {};
+      }
       payload.apns.payload.webhook_id = req.body.registration_info.webhook_id;
     }
 
@@ -76,7 +79,7 @@ module.exports = {
       } else if (req.body.message === 'clear_notification') {
         addCommand('clear_notification');
 
-        if (req.body.data.tag) {
+        if (req.body.data && req.body.data.tag) {
           payload.apns.payload.homeassistant.tag = req.body.data.tag;
         }
 
@@ -197,11 +200,13 @@ module.exports = {
           }
         }
 
-        if (needsCategory && !payload.apns.payload.aps.category) {
-          payload.apns.payload.aps.category = 'DYNAMIC';
+        if (!payload.apns.payload.aps) {
+          payload.apns.payload.aps = {};
         }
 
-        if (payload.apns.payload.aps.category) {
+        if (needsCategory && !payload.apns.payload.aps.category) {
+          payload.apns.payload.aps.category = 'DYNAMIC';
+        } else if (payload.apns.payload.aps.category) {
           payload.apns.payload.aps.category = payload.apns.payload.aps.category.toUpperCase();
         }
 
