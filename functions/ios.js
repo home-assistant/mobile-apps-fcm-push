@@ -72,7 +72,7 @@ module.exports = {
 
           if (req.body.data.sound) {
             payload.apns.payload.aps.sound = req.body.data.sound;
-          } else if (req.body.data.push && req.body.data.push.sound) {
+          } else if (req.body.data.push?.sound) {
             payload.apns.payload.aps.sound = req.body.data.push.sound;
           }
 
