@@ -106,7 +106,7 @@ module.exports = {
           }
 
           if (req.body.data.push) {
-            Object.assign(payload.apns.payload.aps, req.body.data.push);
+            payload.apns.payload.aps = { ...payload.apns.payload.aps, ...req.body.data.push };
           }
 
           if (req.body.data.actions) {

@@ -110,7 +110,7 @@ module.exports = {
       ];
 
       androidNotificationKeys.forEach((key) => {
-        if (key in req.body.data) {
+        if (Object.hasOwn(req.body.data, key)) {
           payload.data[key] = String(req.body.data[key]);
         }
       });
