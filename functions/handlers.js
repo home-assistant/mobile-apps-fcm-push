@@ -193,8 +193,9 @@ function handleError(req, res, payload = {}, step, incomingError, shouldExit = t
     if (
       errorCode === 'invalid-argument' ||
       errorCode === 'payload-too-large' ||
+      (incomingError.message && (
       incomingError.message.toLowerCase().includes('message is too big') ||
-      incomingError.message.toLowerCase().includes('payload too large')
+      incomingError.message.toLowerCase().includes('payload too large')))
     ) {
       if (!shouldExit) {
         return true;
