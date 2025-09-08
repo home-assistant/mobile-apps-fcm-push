@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
 
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
 
