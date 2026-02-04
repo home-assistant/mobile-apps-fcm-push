@@ -143,6 +143,7 @@ module.exports = {
         'command_screen_brightness_level',
         'command_screen_off_timeout',
         'command_flashlight',
+        'command_wake_word_detection',
       ];
       if (androidMessagesToIgnore.includes(req.body.message)) {
         updateRateLimits = false;
