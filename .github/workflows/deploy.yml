@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@v15.6.0
+        uses: w9jds/firebase-action@v15.7.0
         with:
           args: deploy --only hosting
         env:
