@@ -107,6 +107,8 @@ module.exports = {
         'progress',
         'progress_max',
         'progress_indeterminate',
+        'live_update',
+        'critical_text',
       ];
 
       androidNotificationKeys.forEach((key) => {
