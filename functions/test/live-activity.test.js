@@ -38,7 +38,7 @@ jest.mock('firebase-functions', () => ({
 }));
 
 const { handleLiveActivityRequest } = require('../index.js');
-const liveActivity = require('../live-activity');
+const ios = require('../ios');
 
 // --- Helpers ---
 
@@ -110,7 +110,7 @@ describe('live-activity createPayload', () => {
   it.each(fixtureFiles)('%s', (filename) => {
     const fixture = JSON.parse(fs.readFileSync(path.join(fixturesDir, filename), 'utf8'));
     const req = createMockRequest({ body: fixture.input });
-    const result = liveActivity.createPayload(req);
+    const result = ios.createLiveActivityPayload(req);
 
     expect(result.updateRateLimits).toBe(fixture.expected.updateRateLimits);
     expect(result.apnsEnvironment).toBe(fixture.expected.apnsEnvironment);
@@ -150,7 +150,7 @@ describe('handleLiveActivityRequest', () => {
 
   test('sends successfully and returns 201', async () => {
     const req = createLiveActivityRequest();
-    await handleLiveActivityRequest(req, res, liveActivity.createPayload);
+    await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
 
     expect(mockApns.send).toHaveBeenCalledTimes(1);
     const [sentToken, sentPayload, sentHeaders, sentEnv] = mockApns.send.mock.calls[0];
@@ -169,7 +169,7 @@ describe('handleLiveActivityRequest', () => {
   test('rejects missing token with 403', async () => {
     const req = createLiveActivityRequest({ push_token: undefined });
     delete req.body.push_token;
-    await handleLiveActivityRequest(req, res, liveActivity.createPayload);
+    await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
 
     assertResponse.expectForbiddenResponse(res, 'You did not send a token!');
     expect(mockApns.send).not.toHaveBeenCalled();
@@ -177,7 +177,7 @@ describe('handleLiveActivityRequest', () => {
 
   test('rejects FCM token (contains colon) with 403', async () => {
     const req = createLiveActivityRequest({ push_token: 'fcm:token123' });
-    await handleLiveActivityRequest(req, res, liveActivity.createPayload);
+    await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
 
     assertResponse.expectForbiddenResponse(res, 'That is not a valid APNs token');
     expect(mockApns.send).not.toHaveBeenCalled();
@@ -185,7 +185,7 @@ describe('handleLiveActivityRequest', () => {
 
   test('rejects non-hex token with 403', async () => {
     const req = createLiveActivityRequest({ push_token: 'not-a-valid-token!!' });
-    await handleLiveActivityRequest(req, res, liveActivity.createPayload);
+    await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
 
     assertResponse.expectForbiddenResponse(res, 'That is not a valid APNs token');
     expect(mockApns.send).not.toHaveBeenCalled();
@@ -193,7 +193,7 @@ describe('handleLiveActivityRequest', () => {
 
   test('does not update rate limits for end events', async () => {
     const req = createLiveActivityRequest({ data: { event: 'end', activity_id: 'test-001' } });
-    await handleLiveActivityRequest(req, res, liveActivity.createPayload);
+    await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
 
     expect(mockApns.send).toHaveBeenCalledTimes(1);
     assertResponse.expectSuccessResponse(res);
@@ -205,7 +205,7 @@ describe('handleLiveActivityRequest', () => {
   test('returns 500 InvalidToken on APNs BadDeviceToken', async () => {
     mockApns.send.mockResolvedValue({ status: 400, apnsId: null, body: { reason: 'BadDeviceToken' } });
     const req = createLiveActivityRequest();
-    await handleLiveActivityRequest(req, res, liveActivity.createPayload);
+    await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
 
     assertResponse.expectErrorResponse(res, 500, { errorType: 'InvalidToken' });
   });
@@ -213,7 +213,7 @@ describe('handleLiveActivityRequest', () => {
   test('returns 500 InternalError on APNs send failure', async () => {
     mockApns.send.mockRejectedValue(new Error('Network error'));
     const req = createLiveActivityRequest();
-    await handleLiveActivityRequest(req, res, liveActivity.createPayload);
+    await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
 
     assertResponse.expectErrorResponse(res, 500, {
       errorType: 'InternalError',
@@ -224,7 +224,7 @@ describe('handleLiveActivityRequest', () => {
   test('returns 500 InternalError on unexpected APNs status', async () => {
     mockApns.send.mockResolvedValue({ status: 500, apnsId: null, body: { reason: 'InternalServerError' } });
     const req = createLiveActivityRequest();
-    await handleLiveActivityRequest(req, res, liveActivity.createPayload);
+    await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
 
     assertResponse.expectErrorResponse(res, 500, { errorType: 'InternalError' });
   });
@@ -237,7 +237,7 @@ describe('handleLiveActivityRequest', () => {
     );
 
     const req = createLiveActivityRequest();
-    await handleLiveActivityRequest(req, res, liveActivity.createPayload);
+    await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
 
     assertResponse.expectRateLimitResponse(res, VALID_APNS_TOKEN);
     expect(mockApns.send).not.toHaveBeenCalled();
@@ -249,7 +249,7 @@ describe('handleLiveActivityRequest', () => {
 describe('live-activity createPayload unit', () => {
   test('defaults event to update when not specified', () => {
     const req = createLiveActivityRequest({ body: { data: {} } });
-    const { apnsPayload } = liveActivity.createPayload(req);
+    const { apnsPayload } = ios.createLiveActivityPayload(req);
     expect(apnsPayload.aps.event).toBe('update');
   });
 
@@ -261,7 +261,7 @@ describe('live-activity createPayload unit', () => {
         data: { event: 'update' },
       },
     });
-    const { apnsEnvironment } = liveActivity.createPayload(req);
+    const { apnsEnvironment } = ios.createLiveActivityPayload(req);
     expect(apnsEnvironment).toBe('production');
   });
 
@@ -274,7 +274,7 @@ describe('live-activity createPayload unit', () => {
         data: { event: 'start', activity_id: 'laundry-001' },
       },
     });
-    const { apnsPayload } = liveActivity.createPayload(req);
+    const { apnsPayload } = ios.createLiveActivityPayload(req);
     expect(apnsPayload.aps['attributes-type']).toBe('HALiveActivityAttributes');
     expect(apnsPayload.aps.attributes).toEqual({ tag: 'laundry-001', title: 'Laundry' });
   });
@@ -287,7 +287,7 @@ describe('live-activity createPayload unit', () => {
         data: { event: 'end', dismissal_date: 9999999 },
       },
     });
-    const { apnsPayload } = liveActivity.createPayload(req);
+    const { apnsPayload } = ios.createLiveActivityPayload(req);
     expect(apnsPayload.aps['dismissal-date']).toBe(9999999);
   });
 
@@ -299,7 +299,7 @@ describe('live-activity createPayload unit', () => {
         data: { event: 'update', stale_date: 1111, relevance_score: 0.5 },
       },
     });
-    const { apnsPayload } = liveActivity.createPayload(req);
+    const { apnsPayload } = ios.createLiveActivityPayload(req);
     expect(apnsPayload.aps['stale-date']).toBe(1111);
     expect(apnsPayload.aps['relevance-score']).toBe(0.5);
   });
@@ -312,7 +312,7 @@ describe('live-activity createPayload unit', () => {
         data: { event: 'update' },
       },
     });
-    const { apnsHeaders } = liveActivity.createPayload(req);
+    const { apnsHeaders } = ios.createLiveActivityPayload(req);
     expect(apnsHeaders['apns-topic']).toBe('com.example.app.push-type.liveactivity');
   });
 
@@ -325,7 +325,7 @@ describe('live-activity createPayload unit', () => {
         data: { event: 'update' },
       },
     });
-    const { apnsPayload } = liveActivity.createPayload(req);
+    const { apnsPayload } = ios.createLiveActivityPayload(req);
     expect(apnsPayload.aps['content-state'].message).toBe('Hello from HA');
   });
 });

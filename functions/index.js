@@ -9,7 +9,6 @@ initializeApp();
 const android = require('./android');
 const ios = require('./ios');
 const legacy = require('./legacy');
-const liveActivity = require('./live-activity');
 
 const region = (functions.config().app && functions.config().app.region) || 'us-central1';
 const regionalFunctions = functions.region(region).runWith({ timeoutSeconds: 10 });
@@ -33,7 +32,7 @@ exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res
 );
 
 exports.iOSLiveActivityV1 = regionalFunctions.https.onRequest(async (req, res) =>
-  handleLiveActivityRequest(req, res, liveActivity.createPayload),
+  handleLiveActivityRequest(req, res, ios.createLiveActivityPayload),
 );
 
 exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) =>

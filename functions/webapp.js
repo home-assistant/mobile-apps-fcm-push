@@ -13,7 +13,6 @@ const { handleRequest, handleCheckRateLimits, handleLiveActivityRequest } = requ
 const android = require('./android');
 const ios = require('./ios');
 const legacy = require('./legacy');
-const liveActivity = require('./live-activity');
 
 // Cloud Functions adapter
 function createCloudFunctionsAdapter(request, reply) {
@@ -51,7 +50,7 @@ async function handleSendPushNotification(request, reply) {
 
 async function handleIOSLiveActivityV1(request, reply) {
   const { req, res } = createCloudFunctionsAdapter(request, reply);
-  return handleLiveActivityRequest(req, res, liveActivity.createPayload);
+  return handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
 }
 
 async function checkRateLimits(request, reply) {
