@@ -347,11 +347,20 @@ function buildLogMetadata(req) {
   };
 }
 
-// APNs push tokens are hex-encoded and never contain a colon.
+// APNs push tokens are hex-encoded device tokens and never contain a colon.
+// handleRequest uses a colon check to distinguish FCM tokens from legacy SNS tokens;
+// we use a hex-only check here because Live Activity tokens are direct APNs tokens.
+// APNs device tokens are fixed-length: 32 bytes, hex-encoded as 64 characters.
 function isValidApnsToken(token) {
-  return typeof token === 'string' && /^[0-9a-fA-F]+$/.test(token);
+  return typeof token === 'string' && token.length === 64 && /^[0-9a-fA-F]+$/.test(token);
 }
 
+// Handles Live Activity push requests delivered directly to APNs via HTTP/2.
+//
+// This is intentionally separate from handleRequest for two reasons:
+//   1. Token format: Live Activity tokens are hex APNs tokens, not FCM tokens with a colon.
+//   2. Delivery path: Live Activities require apns-push-type: liveactivity, which FCM does
+//      not support. The payload goes straight to APNs via apns.js, not through messaging.send().
 async function handleLiveActivityRequest(req, res, payloadHandler) {
   const log = logging.log('handleLiveActivityRequest');
   const metadata = buildLogMetadata(req);
@@ -407,6 +416,10 @@ async function handleLiveActivityRequest(req, res, payloadHandler) {
     if (result.status !== 200) {
       const reason = result.body?.reason ?? 'Unknown';
       const err = new Error(`APNs error: ${reason} (HTTP ${result.status})`);
+      // BadDeviceToken means the token is invalid or the activity has already ended.
+      // This is expected (not a server bug), so we return an InvalidToken response
+      // without logging to Cloud Error Reporting — same pattern as handleRequest uses
+      // for FCM's invalid-registration-token error code.
       if (result.status === 400 && reason === 'BadDeviceToken') {
         if (updateRateLimits) {
           await rateLimiter.recordError(token);
