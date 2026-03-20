@@ -8,11 +8,12 @@ const { loggerConfig } = require('./fastify-logger');
 const fastify = require('fastify')({ logger: loggerConfig, trustProxy: true });
 
 // Import the functions from index.js
-const { handleRequest, handleCheckRateLimits } = require('./handlers');
+const { handleRequest, handleCheckRateLimits, handleLiveActivityRequest } = require('./handlers');
 
 const android = require('./android');
 const ios = require('./ios');
 const legacy = require('./legacy');
+const liveActivity = require('./live-activity');
 
 // Cloud Functions adapter
 function createCloudFunctionsAdapter(request, reply) {
@@ -48,6 +49,11 @@ async function handleSendPushNotification(request, reply) {
   return handleRequest(req, res, legacy.createPayload);
 }
 
+async function handleIOSLiveActivityV1(request, reply) {
+  const { req, res } = createCloudFunctionsAdapter(request, reply);
+  return handleLiveActivityRequest(req, res, liveActivity.createPayload);
+}
+
 async function checkRateLimits(request, reply) {
   const { req, res } = createCloudFunctionsAdapter(request, reply);
   return handleCheckRateLimits(req, res);
@@ -56,6 +62,7 @@ async function checkRateLimits(request, reply) {
 // Register routes
 fastify.post('/api/sendPush/android/v1', handleAndroidV1);
 fastify.post('/api/sendPush/iOS/v1', handleIOSV1);
+fastify.post('/api/sendPush/iOS/liveActivity/v1', handleIOSLiveActivityV1);
 fastify.post('/api/sendPushNotification', handleSendPushNotification);
 fastify.post('/api/checkRateLimits', checkRateLimits);
 

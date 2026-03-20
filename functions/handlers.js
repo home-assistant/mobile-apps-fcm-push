@@ -3,6 +3,7 @@
 const { Logging } = require('@google-cloud/logging');
 const { getMessaging } = require('firebase-admin/messaging');
 const { FirestoreRateLimiter, ValkeyRateLimiter } = require('./rate-limiter');
+const apns = require('./apns');
 
 const MAX_NOTIFICATIONS_PER_DAY = parseInt(process.env.MAX_NOTIFICATIONS_PER_DAY || '500');
 const REGION = (process.env.REGION || 'us-central1').toLowerCase();
@@ -346,5 +347,103 @@ function buildLogMetadata(req) {
   };
 }
 
+// APNs push tokens are hex-encoded and never contain a colon.
+function isValidApnsToken(token) {
+  return typeof token === 'string' && /^[0-9a-fA-F]+$/.test(token);
+}
+
+async function handleLiveActivityRequest(req, res, payloadHandler) {
+  const log = logging.log('handleLiveActivityRequest');
+  const metadata = buildLogMetadata(req);
+
+  if (debug) {
+    log.debug(log.entry(metadata, { message: 'Handling live activity request' }));
+  }
+
+  const { push_token: token } = req.body;
+  if (!token) {
+    return res.status(403).send({ errorMessage: 'You did not send a token!' });
+  }
+  if (!isValidApnsToken(token)) {
+    return res.status(403).send({ errorMessage: 'That is not a valid APNs token' });
+  }
+
+  const { updateRateLimits, apnsPayload, apnsHeaders, apnsEnvironment } = payloadHandler(req);
+
+  let rateLimitInfo;
+  try {
+    rateLimitInfo = await rateLimiter.checkRateLimit(token);
+  } catch (err) {
+    return handleError(req, res, apnsPayload, 'getRateLimitDoc', err);
+  }
+
+  if (updateRateLimits) {
+    const attemptInfo = await rateLimiter.recordAttempt(token);
+
+    if (attemptInfo.isRateLimited) {
+      return res.status(429).send({
+        errorType: 'RateLimited',
+        message:
+          'The given target has reached the maximum number of notifications allowed per day. Please try again later.',
+        target: token,
+        rateLimits: attemptInfo.rateLimits,
+      });
+    }
+  }
+
+  if (debug) {
+    log.info(
+      log.entry(metadata, {
+        message: 'Sending live activity notification',
+        notification: JSON.stringify(apnsPayload),
+      }),
+    );
+  }
+
+  let apnsId;
+  let rateLimits;
+  try {
+    const result = await apns.send(token, apnsPayload, apnsHeaders, apnsEnvironment);
+    if (result.status !== 200) {
+      const reason = result.body?.reason ?? 'Unknown';
+      const err = new Error(`APNs error: ${reason} (HTTP ${result.status})`);
+      if (result.status === 400 && reason === 'BadDeviceToken') {
+        if (updateRateLimits) {
+          await rateLimiter.recordError(token);
+        }
+        return res.status(500).send({
+          errorType: 'InvalidToken',
+          errorStep: 'sendNotification',
+          message: err.message,
+        });
+      }
+      throw err;
+    }
+    apnsId = result.apnsId;
+    if (updateRateLimits) {
+      rateLimits = await rateLimiter.recordSuccess(token);
+    } else {
+      rateLimits = rateLimitInfo.rateLimits;
+    }
+  } catch (err) {
+    if (updateRateLimits) {
+      await rateLimiter.recordError(token);
+    }
+    return handleError(req, res, apnsPayload, 'sendNotification', err);
+  }
+
+  if (debug) {
+    log.info(log.entry(metadata, { message: 'Successfully sent live activity notification', apnsId }));
+  }
+
+  return res.status(201).send({
+    messageId: apnsId,
+    sentPayload: apnsPayload,
+    target: token,
+    rateLimits: rateLimits,
+  });
+}
+
 exports.handleRequest = handleRequest;
 exports.handleCheckRateLimits = handleCheckRateLimits;
+exports.handleLiveActivityRequest = handleLiveActivityRequest;
