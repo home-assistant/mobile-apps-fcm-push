@@ -1,5 +1,17 @@
 'use strict';
 
+// Direct APNs HTTP/2 client used for iOS Live Activity push notifications.
+//
+// Live Activity push tokens are hex-encoded direct APNs tokens — they are NOT FCM tokens.
+// FCM tokens always contain a colon and are routed through Firebase; Live Activity tokens
+// bypass Firebase entirely and must be delivered directly to api.push.apple.com via HTTP/2.
+// Additionally, FCM does not support apns-push-type: liveactivity, so this path is required.
+//
+// Required environment variables:
+//   APNS_TEAM_ID     - 10-character Apple Developer Team ID
+//   APNS_KEY_ID      - 10-character key ID for the .p8 signing key
+//   APNS_PRIVATE_KEY - Contents of the .p8 file (newlines may be escaped as \n)
+
 const crypto = require('crypto');
 const http2 = require('http2');
 
@@ -48,6 +60,11 @@ function generateJWT() {
   return jwtCache;
 }
 
+// Returns a cached HTTP/2 session for the given APNs environment.
+// Sessions are cached at module level so warm Cloud Function instances reuse the same
+// persistent connection rather than re-establishing a TLS handshake on every request.
+// Sandbox and production use separate sessions because they connect to different hosts;
+// APNs will reject a production token sent to the sandbox endpoint and vice versa.
 function getSession(environment) {
   const existing = sessions[environment];
   if (existing && !existing.destroyed && !existing.closed) {
@@ -57,6 +74,7 @@ function getSession(environment) {
   const host = getApnsHost(environment);
   const session = http2.connect(`https://${host}`);
   session.on('error', () => {
+    // Clean up the cached reference so the next call creates a fresh session.
     session.destroy();
     delete sessions[environment];
   });
@@ -106,7 +124,17 @@ async function send(token, payload, extraHeaders, environment) {
 
     req.on('end', () => {
       const status = responseHeaders[':status'];
-      const parsedBody = responseBody ? JSON.parse(responseBody) : {};
+      let parsedBody;
+      if (!responseBody) {
+        parsedBody = {};
+      } else {
+        try {
+          parsedBody = JSON.parse(responseBody);
+        } catch (e) {
+          // APNs or an intermediary returned a non-JSON body; preserve the raw text.
+          parsedBody = { raw: responseBody };
+        }
+      }
       resolve({ status, apnsId: responseHeaders['apns-id'] ?? null, body: parsedBody });
     });
 

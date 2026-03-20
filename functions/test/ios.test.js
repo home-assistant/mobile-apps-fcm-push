@@ -191,6 +191,15 @@ describe('handleLiveActivityRequest', () => {
     expect(mockApns.send).not.toHaveBeenCalled();
   });
 
+  test('rejects hex token with wrong length with 403', async () => {
+    // APNs tokens are exactly 64 hex chars (32 bytes); shorter values are invalid.
+    const req = createLiveActivityRequest({ push_token: 'a1b2c3d4' });
+    await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
+
+    assertResponse.expectForbiddenResponse(res, 'That is not a valid APNs token');
+    expect(mockApns.send).not.toHaveBeenCalled();
+  });
+
   test('does not update rate limits for end events', async () => {
     const req = createLiveActivityRequest({ data: { event: 'end', activity_id: 'test-001' } });
     await handleLiveActivityRequest(req, res, ios.createLiveActivityPayload);
@@ -248,7 +257,7 @@ describe('handleLiveActivityRequest', () => {
 
 describe('live-activity createPayload unit', () => {
   test('defaults event to update when not specified', () => {
-    const req = createLiveActivityRequest({ body: { data: {} } });
+    const req = createLiveActivityRequest({ data: {} });
     const { apnsPayload } = ios.createLiveActivityPayload(req);
     expect(apnsPayload.aps.event).toBe('update');
   });

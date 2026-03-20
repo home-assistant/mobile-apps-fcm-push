@@ -1,6 +1,7 @@
 'use strict';
 
-// Events that do not count against rate limits (equivalent to clear_notification on Android).
+// Live Activity 'end' events dismiss an ongoing activity rather than delivering new content,
+// so they are exempt from rate limits — equivalent to clear_notification on Android.
 const NO_RATE_LIMIT_LIVE_ACTIVITY_EVENTS = new Set(['end']);
 
 module.exports = {
@@ -147,6 +148,11 @@ module.exports = {
     return { updateRateLimits, payload };
   },
 
+  // Builds the APNs payload for a Live Activity push notification.
+  //
+  // This returns a different shape than createPayload because Live Activities bypass FCM
+  // entirely — the payload is delivered directly to APNs via apns.js. The returned object
+  // contains apnsPayload/apnsHeaders/apnsEnvironment instead of an FCM message object.
   createLiveActivityPayload: (req) => {
     const { data = {} } = req.body;
     const event = data.event ?? 'update';
@@ -163,6 +169,9 @@ module.exports = {
 
     if (event === 'start') {
       // Push-to-start requires the static attributes that were registered with the activity.
+      // 'attributes-type' must exactly match the Swift struct name — HALiveActivityAttributes —
+      // because APNs uses it to look up the registered ActivityKit type on the device.
+      // This value is case-sensitive and cannot change after the app has shipped.
       aps['attributes-type'] = 'HALiveActivityAttributes';
       aps.attributes = {
         tag: data.activity_id ?? data.tag ?? '',
@@ -190,7 +199,12 @@ module.exports = {
       }
     }
 
-    const apnsEnvironment = req.body.registration_info?.apns_environment ?? 'production';
+    // Sandbox tokens are rejected by the production APNs endpoint and vice versa.
+    // The client reports its environment during registration so we can route correctly.
+    // Normalize to the two valid values so unexpected strings don't create unbounded
+    // session cache entries in apns.js (e.g. 'Production', 'prod', or typos).
+    const rawEnvironment = req.body.registration_info?.apns_environment;
+    const apnsEnvironment = rawEnvironment === 'sandbox' ? 'sandbox' : 'production';
     const bundleId = req.body.registration_info?.app_id ?? 'io.robbie.HomeAssistant';
 
     return {
@@ -198,6 +212,7 @@ module.exports = {
       apnsPayload: { aps },
       apnsHeaders: {
         'apns-push-type': 'liveactivity',
+        // APNs requires the topic to include the push-type suffix for Live Activities.
         'apns-topic': `${bundleId}.push-type.liveactivity`,
         'apns-priority': '10',
       },
@@ -206,6 +221,9 @@ module.exports = {
   },
 };
 
+// Builds the content-state object that APNs delivers to the app's Live Activity widget.
+// Each field maps to a property in the Swift HALiveActivityContentState Codable struct.
+// Only recognized fields are forwarded — extra keys would cause APNs to reject the payload.
 function buildLiveActivityContentState(body, data) {
   const state = {};
 
