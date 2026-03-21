@@ -29,12 +29,14 @@ jest.mock('firebase-admin/firestore', () => ({
 jest.mock('firebase-admin/messaging', () => ({
   getMessaging: jest.fn(() => mockMessaging),
 }));
-jest.mock('firebase-functions', () => ({
+const mockFunctions = {
   config: jest.fn(() => ({})),
   region: jest.fn().mockReturnThis(),
   runWith: jest.fn().mockReturnThis(),
   https: { onRequest: jest.fn() },
-}));
+};
+jest.mock('firebase-functions', () => mockFunctions);
+jest.mock('firebase-functions/v1', () => mockFunctions);
 
 const { handleRequest } = require('../index.js');
 const ios = require('../ios');
