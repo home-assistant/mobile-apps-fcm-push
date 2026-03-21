@@ -1,13 +1,13 @@
 {
   "input": {
-    "push_token": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "push_token": "test:fcm-token-123",
+    "live_activity_token": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
     "message": "Timer running",
     "title": "Kitchen Timer",
     "registration_info": {
       "app_id": "io.robbie.HomeAssistant",
       "app_version": "2024.1",
-      "os_version": "17.0",
-      "apns_environment": "production"
+      "os_version": "17.0"
     },
     "data": {
       "event": "update",
@@ -33,12 +33,7 @@
   },
   "expected": {
     "updateRateLimits": true,
-    "apnsEnvironment": "production",
-    "apnsHeaders": {
-      "apns-push-type": "liveactivity",
-      "apns-topic": "io.robbie.HomeAssistant.push-type.liveactivity",
-      "apns-priority": "10"
-    },
+    "liveActivityToken": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
     "apsEvent": "update",
     "contentState": {
       "message": "45 min remaining",
@@ -49,6 +44,13 @@
       "countdown_end": "2024-01-01T12:00:00Z",
       "icon": "mdi:timer",
       "color": "#FF5722"
-    }
+    },
+    "staleDate": 1234571490,
+    "relevanceScore": 0.8,
+    "alert": {
+      "title": "Timer Update",
+      "body": "45 minutes remaining"
+    },
+    "alertSound": "default"
   }
 }
