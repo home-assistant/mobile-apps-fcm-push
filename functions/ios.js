@@ -6,6 +6,15 @@ const NO_RATE_LIMIT_LIVE_ACTIVITY_EVENTS = new Set(['end']);
 
 module.exports = {
   createPayload: (req) => {
+    // When live_activity_token is present, this is a Live Activity push notification.
+    // Firebase Admin SDK v13.5.0+ supports the liveActivityToken (camelCase) field in the
+    // apns config object. When set, FCM automatically adds apns-push-type: liveactivity
+    // and routes the notification to APNs correctly. No APNs credentials, HTTP/2 sessions,
+    // or environment routing are needed — FCM handles it all.
+    if (req.body.live_activity_token) {
+      return buildLiveActivityPayload(req);
+    }
+
     const payload = {
       notification: {
         body: req.body.message,
@@ -147,79 +156,83 @@ module.exports = {
 
     return { updateRateLimits, payload };
   },
+};
 
-  // Builds the APNs payload for a Live Activity push notification.
-  //
-  // This returns a different shape than createPayload because Live Activities bypass FCM
-  // entirely — the payload is delivered directly to APNs via apns.js. The returned object
-  // contains apnsPayload/apnsHeaders/apnsEnvironment instead of an FCM message object.
-  createLiveActivityPayload: (req) => {
-    const { data = {} } = req.body;
-    const event = data.event ?? 'update';
-    const now = Math.floor(Date.now() / 1000);
+// Builds an FCM-compatible payload for Live Activity push notifications.
+//
+// The liveActivityToken field (camelCase) is required by Firebase Admin SDK v13.5.0+.
+// When present in the apns config, FCM automatically sets apns-push-type: liveactivity
+// and routes the notification to APNs correctly. No APNs credentials, HTTP/2 sessions,
+// or environment routing are needed — FCM handles it all.
+function buildLiveActivityPayload(req) {
+  const { data = {} } = req.body;
+  const event = data.event ?? 'update';
+  const now = Math.floor(Date.now() / 1000);
 
-    const aps = {
-      timestamp: now,
-      event,
+  const aps = {
+    timestamp: now,
+    event,
+  };
+
+  // content-state is required for start and update; send for end as well so the
+  // activity can display final state before dismissal.
+  aps['content-state'] = buildLiveActivityContentState(req.body, data);
+
+  if (event === 'start') {
+    // Push-to-start requires the static attributes that were registered with the activity.
+    // 'attributes-type' must exactly match the Swift struct name — HALiveActivityAttributes —
+    // because APNs uses it to look up the registered ActivityKit type on the device.
+    // This value is case-sensitive and cannot change after the app has shipped.
+    aps['attributes-type'] = 'HALiveActivityAttributes';
+    aps.attributes = {
+      tag: data.activity_id ?? data.tag ?? '',
+      title: req.body.title ?? '',
     };
+  }
 
-    // content-state is required for start and update; send for end as well so the
-    // activity can display final state before dismissal.
-    aps['content-state'] = buildLiveActivityContentState(req.body, data);
+  if (event === 'end' && data.dismissal_date) {
+    aps['dismissal-date'] = data.dismissal_date;
+  }
 
-    if (event === 'start') {
-      // Push-to-start requires the static attributes that were registered with the activity.
-      // 'attributes-type' must exactly match the Swift struct name — HALiveActivityAttributes —
-      // because APNs uses it to look up the registered ActivityKit type on the device.
-      // This value is case-sensitive and cannot change after the app has shipped.
-      aps['attributes-type'] = 'HALiveActivityAttributes';
-      aps.attributes = {
-        tag: data.activity_id ?? data.tag ?? '',
-        title: req.body.title ?? '',
-      };
+  if (data.stale_date) {
+    aps['stale-date'] = data.stale_date;
+  }
+
+  if (data.relevance_score !== undefined) {
+    aps['relevance-score'] = data.relevance_score;
+  }
+
+  // Optional alert shown alongside the live activity update.
+  if (data.alert) {
+    aps.alert = data.alert;
+    if (data.alert_sound) {
+      aps.sound = data.alert_sound;
     }
+  }
 
-    if (event === 'end' && data.dismissal_date) {
-      aps['dismissal-date'] = data.dismissal_date;
-    }
-
-    if (data.stale_date) {
-      aps['stale-date'] = data.stale_date;
-    }
-
-    if (data.relevance_score !== undefined) {
-      aps['relevance-score'] = data.relevance_score;
-    }
-
-    // Optional alert shown alongside the live activity update.
-    if (data.alert) {
-      aps.alert = data.alert;
-      if (data.alert_sound) {
-        aps.sound = data.alert_sound;
-      }
-    }
-
-    // Sandbox tokens are rejected by the production APNs endpoint and vice versa.
-    // The client reports its environment during registration so we can route correctly.
-    // Normalize to the two valid values so unexpected strings don't create unbounded
-    // session cache entries in apns.js (e.g. 'Production', 'prod', or typos).
-    const rawEnvironment = req.body.registration_info?.apns_environment;
-    const apnsEnvironment = rawEnvironment === 'sandbox' ? 'sandbox' : 'production';
-    const bundleId = req.body.registration_info?.app_id ?? 'io.robbie.HomeAssistant';
-
-    return {
-      updateRateLimits: !NO_RATE_LIMIT_LIVE_ACTIVITY_EVENTS.has(event),
-      apnsPayload: { aps },
-      apnsHeaders: {
-        'apns-push-type': 'liveactivity',
-        // APNs requires the topic to include the push-type suffix for Live Activities.
-        'apns-topic': `${bundleId}.push-type.liveactivity`,
+  const payload = {
+    apns: {
+      // The liveActivityToken (camelCase) tells Firebase Admin SDK v13.5.0+ to route
+      // this message as a Live Activity notification. FCM automatically sets the
+      // apns-push-type: liveactivity header and the correct apns-topic suffix.
+      liveActivityToken: req.body.live_activity_token,
+      headers: {
         'apns-priority': '10',
       },
-      apnsEnvironment,
-    };
-  },
-};
+      payload: {
+        aps,
+      },
+    },
+    fcm_options: {
+      analytics_label: 'iOSLiveActivityV1',
+    },
+  };
+
+  return {
+    updateRateLimits: !NO_RATE_LIMIT_LIVE_ACTIVITY_EVENTS.has(event),
+    payload,
+  };
+}
 
 // Builds the content-state object that APNs delivers to the app's Live Activity widget.
 // Each field maps to a property in the Swift HALiveActivityContentState Codable struct.

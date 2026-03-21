@@ -17,7 +17,7 @@ const regionalFunctions = functions.region(region).runWith({ timeoutSeconds: 10 
 process.env.DEBUG = isDebug().toString();
 process.env.REGION = region;
 
-const { handleRequest, handleCheckRateLimits, handleLiveActivityRequest } = require('./handlers');
+const { handleRequest, handleCheckRateLimits } = require('./handlers');
 
 exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) =>
   handleRequest(req, res, android.createPayload),
@@ -29,10 +29,6 @@ exports.iOSV1 = regionalFunctions.https.onRequest(async (req, res) =>
 
 exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) =>
   handleRequest(req, res, legacy.createPayload),
-);
-
-exports.iOSLiveActivityV1 = regionalFunctions.https.onRequest(async (req, res) =>
-  handleLiveActivityRequest(req, res, ios.createLiveActivityPayload),
 );
 
 exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) =>
@@ -49,4 +45,3 @@ function isDebug() {
 
 exports.handleRequest = handleRequest;
 exports.handleCheckRateLimits = handleCheckRateLimits;
-exports.handleLiveActivityRequest = handleLiveActivityRequest;
