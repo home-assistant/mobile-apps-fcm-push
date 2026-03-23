@@ -109,6 +109,14 @@ module.exports = {
         'progress_indeterminate',
         'live_update',
         'critical_text',
+        'progress_segments',
+        'progress_points',
+        'progress_start_icon',
+        'progress_end_icon',
+        'progress_tracker_icon',
+        'progress_start_color',
+        'progress_end_color',
+        'progress_tracker_color',
       ];
 
       androidNotificationKeys.forEach((key) => {
