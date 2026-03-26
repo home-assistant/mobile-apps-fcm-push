@@ -38,8 +38,9 @@ const setupFirebaseMocks = () => {
     fromDate: jest.fn((date) => ({ toDate: () => date })),
   };
 
-  // Set up Jest mocks
+  // Set up Jest mocks — mock both paths since index.js uses firebase-functions/v1
   jest.mock('firebase-functions', () => mockFunctions);
+  jest.mock('firebase-functions/v1', () => mockFunctions);
   jest.mock('@google-cloud/logging', () => ({
     Logging: jest.fn(() => mockLogging),
   }));

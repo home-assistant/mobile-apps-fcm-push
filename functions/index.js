@@ -1,6 +1,8 @@
 'use strict';
 
-const functions = require('firebase-functions');
+// firebase-functions v6+ defaults to v2 APIs; use the v1 import to retain
+// functions.config(), functions.region(), and functions.runWith().
+const functions = require('firebase-functions/v1');
 const { initializeApp } = require('firebase-admin/app');
 
 // We need to initialize the app before importing modules that want Firestore.

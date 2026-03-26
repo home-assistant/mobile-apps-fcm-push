@@ -34,11 +34,13 @@ jest.mock('firebase-admin/firestore', () => ({
   Timestamp: mockTimestamp,
 }));
 
-jest.mock('firebase-functions', () => ({
+const mockFunctionsLogger = {
   logger: {
     info: jest.fn(),
   },
-}));
+};
+jest.mock('firebase-functions', () => mockFunctionsLogger);
+jest.mock('firebase-functions/v1', () => mockFunctionsLogger);
 
 const FirestoreRateLimiter = require('../../rate-limiter/firestore-rate-limiter');
 

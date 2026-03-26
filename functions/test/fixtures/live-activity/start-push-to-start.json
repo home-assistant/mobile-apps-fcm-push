@@ -1,0 +1,41 @@
+{
+  "input": {
+    "push_token": "test:fcm-token-123",
+    "live_activity_token": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "message": "Laundry started",
+    "title": "Laundry",
+    "registration_info": {
+      "app_id": "io.robbie.HomeAssistant",
+      "app_version": "2024.1",
+      "os_version": "17.2"
+    },
+    "data": {
+      "event": "start",
+      "activity_id": "laundry-001",
+      "content_state": {
+        "message": "Laundry started",
+        "progress": 0,
+        "progress_max": 3600,
+        "icon": "mdi:washing-machine",
+        "color": "#2196F3"
+      }
+    }
+  },
+  "expected": {
+    "updateRateLimits": true,
+    "liveActivityToken": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "apsEvent": "start",
+    "attributesType": "HALiveActivityAttributes",
+    "attributes": {
+      "tag": "laundry-001",
+      "title": "Laundry"
+    },
+    "contentState": {
+      "message": "Laundry started",
+      "progress": 0,
+      "progress_max": 3600,
+      "icon": "mdi:washing-machine",
+      "color": "#2196F3"
+    }
+  }
+}
