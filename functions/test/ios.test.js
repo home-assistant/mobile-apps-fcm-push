@@ -283,10 +283,12 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.headers['apns-topic']).toBeUndefined();
   });
 
-  test('end events do not update rate limits', () => {
-    const req = createLiveActivityRequest({ data: { event: 'end', activity_id: 'test-001' } });
-    const result = ios.createPayload(req);
-    expect(result.updateRateLimits).toBe(false);
+  test('all live activity events update rate limits', () => {
+    for (const event of ['start', 'update', 'end']) {
+      const req = createLiveActivityRequest({ data: { event, activity_id: 'test-001' } });
+      const result = ios.createPayload(req);
+      expect(result.updateRateLimits).toBe(true);
+    }
   });
 
   test('normal notifications (no live_activity_token) still work as before', () => {
@@ -350,7 +352,7 @@ describe('handleRequest with Live Activity payload', () => {
     expect(mockMessaging.send).not.toHaveBeenCalled();
   });
 
-  test('does not update rate limits for end events', async () => {
+  test('updates rate limits for end events', async () => {
     const req = createLiveActivityRequest({ data: { event: 'end', activity_id: 'test-001' } });
     await handleRequest(req, res, ios.createPayload);
 

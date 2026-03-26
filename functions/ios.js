@@ -1,9 +1,5 @@
 'use strict';
 
-// Live Activity 'end' events dismiss an ongoing activity rather than delivering new content,
-// so they are exempt from rate limits — equivalent to clear_notification on Android.
-const NO_RATE_LIMIT_LIVE_ACTIVITY_EVENTS = new Set(['end']);
-
 module.exports = {
   createPayload: (req) => {
     // When live_activity_token is present, this is a Live Activity push notification.
@@ -229,7 +225,7 @@ function buildLiveActivityPayload(req) {
   };
 
   return {
-    updateRateLimits: !NO_RATE_LIMIT_LIVE_ACTIVITY_EVENTS.has(event),
+    updateRateLimits: true,
     payload,
   };
 }
