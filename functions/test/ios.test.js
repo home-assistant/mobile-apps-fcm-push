@@ -191,6 +191,17 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.payload.aps.attributes).toEqual({ tag: 'laundry-001', title: 'Laundry' });
   });
 
+  test('attributes-type is only set for start events, not update or end', () => {
+    // HALiveActivityAttributes must only appear in push-to-start payloads.
+    // APNs rejects update/end payloads that include attributes-type.
+    for (const event of ['update', 'end']) {
+      const req = createLiveActivityRequest({ data: { event, activity_id: 'test-001' } });
+      const { payload } = ios.createPayload(req);
+      expect(payload.apns.payload.aps['attributes-type']).toBeUndefined();
+      expect(payload.apns.payload.aps.attributes).toBeUndefined();
+    }
+  });
+
   test('end event includes dismissal-date when provided', () => {
     const req = createMockRequest({
       body: {
