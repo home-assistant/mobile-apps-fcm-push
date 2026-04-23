@@ -39,7 +39,7 @@ const setupFirebaseMocks = () => {
   };
 
   // Set up Jest mocks
-  jest.mock('firebase-functions', () => mockFunctions);
+  jest.mock('firebase-functions/v1', () => mockFunctions);
   jest.mock('@google-cloud/logging', () => ({
     Logging: jest.fn(() => mockLogging),
   }));
