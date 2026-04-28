@@ -1,6 +1,6 @@
 'use strict';
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const { initializeApp } = require('firebase-admin/app');
 
 // We need to initialize the app before importing modules that want Firestore.
