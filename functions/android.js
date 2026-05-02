@@ -113,7 +113,12 @@ module.exports = {
 
       androidNotificationKeys.forEach((key) => {
         if (Object.hasOwn(req.body.data, key)) {
-          payload.data[key] = String(req.body.data[key]);
+          const v = req.body.data[key];
+          // FCM data values must be strings. For arrays/objects (e.g. when the
+          // calling integration's template engine auto-parses a JSON-string
+          // back into a list), String(value) produces "[object Object]" which
+          // the receiving app then can't decode as JSON. Stringify properly.
+          payload.data[key] = (v !== null && typeof v === 'object') ? JSON.stringify(v) : String(v);
         }
       });
     }
