@@ -109,6 +109,22 @@ module.exports = {
         'progress_indeterminate',
         'live_update',
         'critical_text',
+        // Fields used by command_health_connect_write — without these in the
+        // whitelist they get dropped from the FCM payload and the device-side
+        // handler can't find data_type/value/etc.
+        'data_type',
+        'value',
+        'unit',
+        'time',
+        'start_time',
+        'end_time',
+        'systolic',
+        'diastolic',
+        'samples',
+        'stages',
+        'exercise_type',
+        'notes',
+        'client_record_id',
       ];
 
       androidNotificationKeys.forEach((key) => {
@@ -146,6 +162,7 @@ module.exports = {
         'command_screen_off_timeout',
         'command_flashlight',
         'command_wake_word_detection',
+        'command_health_connect_write',
       ];
       if (androidMessagesToIgnore.includes(req.body.message)) {
         updateRateLimits = false;
