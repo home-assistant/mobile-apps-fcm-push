@@ -4,7 +4,8 @@
     "data": {
       "action_data": {
         "latitude": "40.785091",
-        "longitude": "-73.968285"
+        "longitude": "-73.968285",
+        "authenticationRequired": "true"
       }
     },
     "registration_info": {
@@ -27,7 +28,8 @@
     },
     "homeassistant": {
       "latitude": "40.785091",
-      "longitude": "-73.968285"
+      "longitude": "-73.968285",
+      "authenticationRequired": "true"
     }
   }
 }

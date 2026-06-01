@@ -27,6 +27,10 @@ module.exports = {
           if (action.behavior) {
             payload.data[`action_${actionIndex}_behavior`] = action.behavior;
           }
+          if (action.authenticationRequired) {
+            payload.data[`action_${actionIndex}_authenticationRequired`] =
+              action.authenticationRequired;
+          }
         });
       }
 
