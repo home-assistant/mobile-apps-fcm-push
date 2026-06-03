@@ -164,6 +164,10 @@ describe('live-activity createPayload via FCM', () => {
       expect(aps.alert).toMatchObject(fixture.expected.alert);
     }
 
+    if (fixture.expected.interruptionLevel) {
+      expect(aps['interruption-level']).toBe(fixture.expected.interruptionLevel);
+    }
+
     if (fixture.expected.alertSound) {
       expect(aps.sound).toBe(fixture.expected.alertSound);
     }
@@ -195,6 +199,23 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.payload.aps.attributes).toEqual({ tag: 'laundry-001', title: 'Laundry' });
   });
 
+  test('start event synthesizes alert without sound when alert is omitted', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Laundry',
+        message: 'Rinsing',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'start', tag: 'laundry-001' },
+      },
+    });
+    const { payload } = ios.createPayload(req);
+    expect(payload.apns.payload.aps.alert).toEqual({ title: 'Laundry', body: 'Rinsing' });
+    expect(payload.apns.payload.aps['interruption-level']).toBeUndefined();
+    expect(payload.apns.payload.aps.sound).toBeUndefined();
+  });
+
   test('attributes-type is only set for start events, not update or end', () => {
     // HALiveActivityAttributes must only appear in push-to-start payloads.
     // APNs rejects update/end payloads that include attributes-type.
@@ -219,6 +240,29 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.payload.aps['dismissal-date']).toBe(9999999);
   });
 
+  test('clear_notification end event dismisses immediately by default', () => {
+    const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(1704067200000);
+
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        message: 'clear_notification',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'end', tag: 'washer_cycle' },
+      },
+    });
+    const { payload } = ios.createPayload(req);
+    const aps = payload.apns.payload.aps;
+    expect(aps['dismissal-date']).toBe(1704067200);
+    expect(aps['content-state']).toEqual({ message: '' });
+    expect(aps.alert).toEqual({ title: '', body: '' });
+    expect(aps['interruption-level']).toBe('passive');
+    expect(aps.sound).toBeUndefined();
+
+    dateNowSpy.mockRestore();
+  });
+
   test('stale-date and relevance-score are included when provided', () => {
     const req = createMockRequest({
       body: {
@@ -238,6 +282,7 @@ describe('live-activity createPayload via FCM', () => {
       body: {
         push_token: FCM_TOKEN,
         live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Timer',
         message: 'Fallback',
         registration_info: { app_id: 'io.robbie.HomeAssistant' },
         data: {
@@ -248,7 +293,7 @@ describe('live-activity createPayload via FCM', () => {
             progress: 50,
             progress_max: 100,
             chronometer: true,
-            countdown_end: '2024-01-01T00:00:00Z',
+            countdown_end: 1704067200,
             icon: 'mdi:test',
             color: '#FF0000',
           },
@@ -257,14 +302,92 @@ describe('live-activity createPayload via FCM', () => {
     });
     const { payload } = ios.createPayload(req);
     const cs = payload.apns.payload.aps['content-state'];
+    expect(cs.title).toBe('Timer');
     expect(cs.message).toBe('Override');
     expect(cs.critical_text).toBe('Critical');
     expect(cs.progress).toBe(50);
     expect(cs.progress_max).toBe(100);
     expect(cs.chronometer).toBe(true);
-    expect(cs.countdown_end).toBe('2024-01-01T00:00:00Z');
+    expect(cs.countdown_end).toBe(1704067200);
     expect(cs.icon).toBe('mdi:test');
     expect(cs.color).toBe('#FF0000');
+  });
+
+  test('flat Live Activity fields are translated into content-state', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Washing Machine',
+        message: 'Rinsing',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: {
+          event: 'update',
+          critical_text: 'Rinse',
+          progress: 900,
+          progress_max: 3600,
+          chronometer: true,
+          notification_icon: 'mdi:washing-machine',
+          notification_icon_color: '#2196F3',
+        },
+      },
+    });
+    const { payload } = ios.createPayload(req);
+    expect(payload.apns.payload.aps['content-state']).toMatchObject({
+      title: 'Washing Machine',
+      message: 'Rinsing',
+      critical_text: 'Rinse',
+      progress: 900,
+      progress_max: 3600,
+      chronometer: true,
+      icon: 'mdi:washing-machine',
+      color: '#2196F3',
+    });
+  });
+
+  test('explicit content_state takes precedence over flat fields', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        message: 'Fallback',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: {
+          event: 'update',
+          progress: 100,
+          notification_icon: 'mdi:washing-machine',
+          content_state: {
+            title: 'Override title',
+            message: 'Override',
+            progress: 999,
+            icon: 'mdi:timer',
+          },
+        },
+      },
+    });
+    const { payload } = ios.createPayload(req);
+    expect(payload.apns.payload.aps['content-state']).toMatchObject({
+      title: 'Override title',
+      message: 'Override',
+      progress: 999,
+      icon: 'mdi:timer',
+    });
+  });
+
+  test('relative when is translated into countdown_end', () => {
+    const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(1704067200000);
+
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'update', when: 300, when_relative: true },
+      },
+    });
+    const { payload } = ios.createPayload(req);
+    expect(payload.apns.payload.aps['content-state'].countdown_end).toBe(1704067500);
+    dateNowSpy.mockRestore();
   });
 
   test('top-level message is used when no content_state', () => {
@@ -279,6 +402,39 @@ describe('live-activity createPayload via FCM', () => {
     });
     const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['content-state'].message).toBe('Hello from HA');
+  });
+
+  test('update event synthesizes blank alert without sound when alert is omitted', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Laundry',
+        message: 'Rinsing',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'update', tag: 'laundry-001' },
+      },
+    });
+    const { payload } = ios.createPayload(req);
+    expect(payload.apns.payload.aps.alert).toEqual({ title: '', body: '' });
+    expect(payload.apns.payload.aps['interruption-level']).toBe('passive');
+    expect(payload.apns.payload.aps.sound).toBeUndefined();
+  });
+
+  test('content-state includes empty message when top-level message is omitted', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'update', progress: 1 },
+      },
+    });
+    const { payload } = ios.createPayload(req);
+    expect(payload.apns.payload.aps['content-state']).toMatchObject({
+      message: '',
+      progress: 1,
+    });
   });
 
   test('liveActivityToken is set from req.body.live_activity_token', () => {

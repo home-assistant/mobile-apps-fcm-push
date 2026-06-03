@@ -12,13 +12,10 @@
     "data": {
       "event": "start",
       "activity_id": "laundry-001",
-      "content_state": {
-        "message": "Laundry started",
-        "progress": 0,
-        "progress_max": 3600,
-        "icon": "mdi:washing-machine",
-        "color": "#2196F3"
-      }
+      "progress": 0,
+      "progress_max": 3600,
+      "notification_icon": "mdi:washing-machine",
+      "notification_icon_color": "#2196F3"
     }
   },
   "expected": {
@@ -31,11 +28,16 @@
       "title": "Laundry"
     },
     "contentState": {
+      "title": "Laundry",
       "message": "Laundry started",
       "progress": 0,
       "progress_max": 3600,
       "icon": "mdi:washing-machine",
       "color": "#2196F3"
+    },
+    "alert": {
+      "title": "Laundry",
+      "body": "Laundry started"
     }
   }
 }
