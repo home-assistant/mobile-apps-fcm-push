@@ -264,7 +264,7 @@ function buildLiveActivityPayload(req) {
       // apns-push-type: liveactivity header and the correct apns-topic suffix.
       liveActivityToken: req.body.live_activity_token,
       headers: {
-        'apns-priority': liveActivityPriority(data, event),
+        'apns-priority': '10',
       },
       payload: {
         aps,
@@ -295,18 +295,6 @@ function defaultLiveActivityAlert(body, event) {
     title: '',
     body: '',
   };
-}
-
-function liveActivityPriority(data, event) {
-  if (data.alert) {
-    return '10';
-  }
-
-  if (event === LiveActivityEvent.UPDATE) {
-    return '5';
-  }
-
-  return '10';
 }
 
 // Builds the content-state object that APNs delivers to the app's Live Activity widget.

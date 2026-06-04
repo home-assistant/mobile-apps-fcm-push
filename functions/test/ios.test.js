@@ -440,35 +440,8 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.liveActivityToken).toBe(LIVE_ACTIVITY_TOKEN);
   });
 
-  test('apns-priority header is 10 for start events', () => {
-    const req = createLiveActivityRequest({ data: { event: 'start', tag: 'washer_cycle' } });
-    const { payload } = ios.createPayload(req);
-    expect(payload.apns.headers['apns-priority']).toBe('10');
-  });
-
-  test('apns-priority header is 5 for quiet update events', () => {
-    const req = createLiveActivityRequest({ data: { event: 'update', tag: 'washer_cycle' } });
-    const { payload } = ios.createPayload(req);
-    expect(payload.apns.headers['apns-priority']).toBe('5');
-  });
-
-  test('apns-priority header is 10 for update events with explicit alert', () => {
-    const req = createLiveActivityRequest({
-      data: {
-        event: 'update',
-        tag: 'washer_cycle',
-        alert: {
-          title: 'Washer',
-          body: 'Done',
-        },
-      },
-    });
-    const { payload } = ios.createPayload(req);
-    expect(payload.apns.headers['apns-priority']).toBe('10');
-  });
-
-  test('apns-priority header is 10 for end events', () => {
-    const req = createLiveActivityRequest({ data: { event: 'end', tag: 'washer_cycle' } });
+  test('apns-priority header is set to 10', () => {
+    const req = createLiveActivityRequest();
     const { payload } = ios.createPayload(req);
     expect(payload.apns.headers['apns-priority']).toBe('10');
   });
@@ -530,7 +503,7 @@ describe('handleRequest with Live Activity payload', () => {
     const sentPayload = mockMessaging.send.mock.calls[0][0];
     expect(sentPayload.apns.liveActivityToken).toBe(LIVE_ACTIVITY_TOKEN);
     expect(sentPayload.apns.payload.aps.event).toBe('update');
-    expect(sentPayload.apns.headers['apns-priority']).toBe('5');
+    expect(sentPayload.apns.headers['apns-priority']).toBe('10');
     expect(sentPayload.token).toBe(FCM_TOKEN);
 
     assertResponse.expectSuccessResponse(res);
