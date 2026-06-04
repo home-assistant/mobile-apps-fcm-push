@@ -41,31 +41,25 @@ module.exports = {
     let updateRateLimits = true;
 
     if (req.body.registration_info.app_id.indexOf('io.robbie.HomeAssistant') > -1) {
-      const addCommand = (command) => {
-        payload.notification = {};
-        payload.apns.payload.aps = {};
-        payload.apns.payload.aps.contentAvailable = true;
-        payload.apns.payload.homeassistant = { command: command };
-        updateRateLimits = false;
-      };
-
       // Enable old SNS iOS specific push setup.
       if (
         req.body.message === 'request_location_update' ||
         req.body.message === 'request_location_updates'
       ) {
-        addCommand('request_location_update');
+        payload.notification = {};
+        payload.apns.payload.aps = {};
+        payload.apns.payload.aps.contentAvailable = true;
+        payload.apns.payload.homeassistant = {
+          command: 'request_location_update',
+        };
+        updateRateLimits = false;
       } else if (req.body.message === 'clear_badge') {
-        addCommand('clear_badge');
+        payload.notification = {};
+        payload.apns.payload.aps = {};
+        payload.apns.payload.aps.contentAvailable = true;
         payload.apns.payload.aps.badge = 0;
-      } else if (req.body.message === 'show_camera') {
-        addCommand('show_camera');
-
-        if (req.body.data?.entity_id) {
-          payload.apns.payload.homeassistant.entity_id = req.body.data.entity_id;
-        }
-      } else if (req.body.message === 'hide_camera') {
-        addCommand('hide_camera');
+        payload.apns.payload.homeassistant = { command: 'clear_badge' };
+        updateRateLimits = false;
       } else {
         if (req.body.data) {
           if (req.body.data.subtitle) {
