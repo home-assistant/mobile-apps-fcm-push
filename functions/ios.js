@@ -27,7 +27,7 @@ module.exports = {
     }
 
     // Live Activity requests without a token fall back to normal push; log them for routing debug.
-    if (req.body.data?.live_update === true) {
+    if (process.env.DEBUG === 'true' && req.body.data?.live_update === true) {
       console.info(
         '[ios-live-activity]',
         JSON.stringify({
@@ -35,7 +35,7 @@ module.exports = {
           reason: 'missing_live_activity_token',
           tag: req.body.data?.tag ?? null,
           activity_id: req.body.data?.activity_id ?? null,
-        })
+        }),
       );
     }
 
@@ -219,7 +219,7 @@ function buildLiveActivityPayload(req) {
     aps[LiveActivityApsKey.DISMISSAL_DATE] = data.dismissal_date ?? now;
   }
 
-  if (data.stale_date) {
+  if (data.stale_date !== undefined) {
     aps[LiveActivityApsKey.STALE_DATE] = data.stale_date;
   }
 
@@ -241,19 +241,21 @@ function buildLiveActivityPayload(req) {
     }
   }
 
-  console.info(
-    '[ios-live-activity]',
-    JSON.stringify({
-      mode: 'live_activity',
-      event,
-      tag: data.tag ?? null,
-      activity_id: data.activity_id ?? null,
-      has_alert: Boolean(aps.alert),
-      interruption_level: aps[LiveActivityApsKey.INTERRUPTION_LEVEL] ?? null,
-      content_state_keys: Object.keys(contentState),
-      dismissal_date: aps[LiveActivityApsKey.DISMISSAL_DATE] ?? null,
-    })
-  );
+  if (process.env.DEBUG === 'true') {
+    console.info(
+      '[ios-live-activity]',
+      JSON.stringify({
+        mode: 'live_activity',
+        event,
+        tag: data.tag ?? null,
+        activity_id: data.activity_id ?? null,
+        has_alert: Boolean(aps.alert),
+        interruption_level: aps[LiveActivityApsKey.INTERRUPTION_LEVEL] ?? null,
+        content_state_keys: Object.keys(contentState),
+        dismissal_date: aps[LiveActivityApsKey.DISMISSAL_DATE] ?? null,
+      }),
+    );
+  }
 
   const payload = {
     apns: {
@@ -262,7 +264,7 @@ function buildLiveActivityPayload(req) {
       // apns-push-type: liveactivity header and the correct apns-topic suffix.
       liveActivityToken: req.body.live_activity_token,
       headers: {
-        'apns-priority': '10',
+        'apns-priority': liveActivityPriority(data, event),
       },
       payload: {
         aps,
@@ -293,6 +295,18 @@ function defaultLiveActivityAlert(body, event) {
     title: '',
     body: '',
   };
+}
+
+function liveActivityPriority(data, event) {
+  if (data.alert) {
+    return '10';
+  }
+
+  if (event === LiveActivityEvent.UPDATE) {
+    return '5';
+  }
+
+  return '10';
 }
 
 // Builds the content-state object that APNs delivers to the app's Live Activity widget.
