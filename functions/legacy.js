@@ -96,6 +96,14 @@ module.exports = {
       } else if (req.body.message === 'update_widgets') {
         addCommand('update_widgets');
         updateRateLimits = false;
+      } else if (req.body.message === 'show_camera') {
+        addCommand('show_camera');
+
+        if (req.body.data?.entity_id) {
+          payload.apns.payload.homeassistant.entity_id = req.body.data.entity_id;
+        }
+      } else if (req.body.message === 'hide_camera') {
+        addCommand('hide_camera');
       } else {
         let needsCategory = false;
         let needsMutableContent = false;
