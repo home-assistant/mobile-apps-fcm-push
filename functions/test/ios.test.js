@@ -1,10 +1,10 @@
 'use strict';
 
 const fs = require('fs');
-const legacy = require('../legacy.js');
+const ios = require('../ios.js');
 const assert = require('assert');
 
-describe('legacy.js', () => {
+describe('ios.js', () => {
   const fixturesDir = './test/fixtures/legacy/';
 
   // Get fixture files synchronously for test definition
@@ -31,7 +31,7 @@ describe('legacy.js', () => {
         updateRateLimits: json['rate_limit'],
       };
 
-      const result = legacy.createPayload({ body: input });
+      const result = ios.createPayload({ body: input });
 
       // Remove things that aren't worth copy/pasting between test cases
       delete result['payload']['android'];

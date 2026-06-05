@@ -7,7 +7,7 @@ const { initializeApp } = require('firebase-admin/app');
 initializeApp();
 
 const android = require('./android');
-const legacy = require('./legacy');
+const ios = require('./ios');
 
 const region = (functions.config().app && functions.config().app.region) || 'us-central1';
 const regionalFunctions = functions.region(region).runWith({ timeoutSeconds: 10 });
@@ -22,8 +22,9 @@ exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) =>
   handleRequest(req, res, android.createPayload),
 );
 
+// /api/sendPushNotification is used exclusively by iOS clients.
 exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) =>
-  handleRequest(req, res, legacy.createPayload),
+  handleRequest(req, res, ios.createPayload),
 );
 
 exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) =>

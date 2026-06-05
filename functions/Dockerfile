@@ -13,7 +13,7 @@ COPY \
     webapp.js \
     index.js \
     android.js \
-    legacy.js \
+    ios.js \
     handlers.js \
     fastify-logger.js \
     ./

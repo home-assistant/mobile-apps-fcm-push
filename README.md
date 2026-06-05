@@ -2,6 +2,11 @@
 
 This is the code that powers the official mobile app push notifications. Feel free to submit PRs!
 
+## Endpoints
+
+- `/api/sendPushNotification`: iOS push notification endpoint.
+- `/api/sendPush/android/v1`: Android push notification endpoint.
+
 ## Developer Setup
 
 Install NPM dependencies:
