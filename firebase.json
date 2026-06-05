@@ -28,13 +28,6 @@
         }
       },
       {
-        "source": "/api/sendPush/iOS/v1",
-        "run": {
-          "serviceId": "mobile-push",
-          "region": "us-central1"
-        }
-      },
-      {
         "source": "/api/checkRateLimits",
         "run": {
           "serviceId": "mobile-push",
