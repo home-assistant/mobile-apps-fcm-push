@@ -43,7 +43,7 @@ jest.mock('firebase-functions/v1', () => ({
 }));
 
 const { handleRequest } = require('../index.js');
-const ios = require('../ios');
+const ios = require('../legacy');
 
 // --- Helpers ---
 
@@ -479,7 +479,7 @@ describe('live-activity createPayload via FCM', () => {
     expect(result.payload.notification).toBeDefined();
     expect(result.payload.notification.body).toBe('Hello');
     expect(result.payload.apns.liveActivityToken).toBeUndefined();
-    expect(result.payload.fcm_options.analytics_label).toBe('iosV1Notification');
+    expect(result.payload.fcm_options.analytics_label).toBe('legacyNotification');
   });
 });
 
