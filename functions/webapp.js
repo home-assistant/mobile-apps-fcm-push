@@ -7,7 +7,7 @@ initializeApp();
 const { loggerConfig } = require('./fastify-logger');
 const fastify = require('fastify')({ logger: loggerConfig, trustProxy: true });
 
-// Import the handlers
+// Import the functions from index.js
 const { handleRequest, handleCheckRateLimits } = require('./handlers');
 
 const android = require('./android');
