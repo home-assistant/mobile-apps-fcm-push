@@ -346,10 +346,12 @@ function buildLiveActivityPayload(req) {
     // Start events always carry an alert so the user sees the activity launch.
     aps.alert = defaultLiveActivityAlert(req.body);
   } else if (event === LiveActivityEvent.UPDATE) {
-    // APNs needs aps.alert present to treat the push as alert-type and deliver immediately.
-    // Omitting `body` avoids triggering the Live Activity update chime — only `body`
-    // causes iOS to play sound, a bare `title` is enough for fast delivery without noise.
-    aps.alert = { title: '' };
+    if (data.silent === true) {
+      // silent: true — title-only alert keeps fast APNs delivery without triggering the chime.
+      aps.alert = { title: '' };
+    } else {
+      aps.alert = defaultLiveActivityAlert(req.body);
+    }
   } else if (event === LiveActivityEvent.END) {
     aps.alert = defaultLiveActivityAlert(req.body);
   }

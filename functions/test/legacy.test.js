@@ -433,7 +433,7 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.payload.aps['content-state'].message).toBe('Hello from HA');
   });
 
-  test('update event uses title-only alert for fast silent delivery when alert is omitted', () => {
+  test('update event uses real alert with sound by default', () => {
     const req = createMockRequest({
       body: {
         push_token: FCM_TOKEN,
@@ -442,6 +442,23 @@ describe('live-activity createPayload via FCM', () => {
         message: 'Rinsing',
         registration_info: { app_id: 'io.robbie.HomeAssistant' },
         data: { event: 'update', tag: 'laundry-001' },
+      },
+    });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.payload.aps.alert).toEqual({ title: 'Laundry', body: 'Rinsing' });
+    expect(payload.apns.payload.aps['interruption-level']).toBeUndefined();
+    expect(payload.apns.payload.aps.sound).toBeUndefined();
+  });
+
+  test('update event with silent: true uses title-only alert', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Laundry',
+        message: 'Rinsing',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'update', tag: 'laundry-001', silent: true },
       },
     });
     const { payload } = legacy.createPayload(req);
