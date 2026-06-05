@@ -337,19 +337,21 @@ function buildLiveActivityPayload(req) {
     aps[LiveActivityApsKey.RELEVANCE_SCORE] = data.relevance_score;
   }
 
-  // FCM currently only delivers Live Activity pushes reliably when aps.alert exists.
-  // Use a blank alert for quiet updates/ends; explicit data.alert still wins.
   if (data.alert) {
     aps.alert = data.alert;
     if (data.alert_sound) {
       aps.sound = data.alert_sound;
     }
-  } else {
-    aps.alert = defaultLiveActivityAlert(req.body, event);
-    if (event !== LiveActivityEvent.START) {
-      aps[LiveActivityApsKey.INTERRUPTION_LEVEL] = 'passive';
-    }
+  } else if (event === LiveActivityEvent.START) {
+    // Start events always carry an alert so the user sees the activity launch.
+    aps.alert = defaultLiveActivityAlert(req.body);
+  } else if (event === LiveActivityEvent.UPDATE) {
+    // APNs needs aps.alert present to treat the push as alert-type and deliver immediately.
+    // Omitting `body` avoids triggering the Live Activity update chime — only `body`
+    // causes iOS to play sound, a bare `title` is enough for fast delivery without noise.
+    aps.alert = { title: '' };
   }
+  // end: no alert unless the caller explicitly provided one.
 
   if (process.env.DEBUG === 'true') {
     console.info(
@@ -391,18 +393,10 @@ function buildLiveActivityPayload(req) {
   };
 }
 
-// FCM requires aps.alert for Live Activity delivery; use real copy for starts and blank copy for quiet updates.
-function defaultLiveActivityAlert(body, event) {
-  if (event === LiveActivityEvent.START) {
-    return {
-      title: body.title ?? '',
-      body: body.message ?? '',
-    };
-  }
-
+function defaultLiveActivityAlert(body) {
   return {
-    title: '',
-    body: '',
+    title: body.title ?? '',
+    body: body.message ?? '',
   };
 }
 

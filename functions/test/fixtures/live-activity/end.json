@@ -23,11 +23,6 @@
       "title": "Laundry",
       "message": ""
     },
-    "dismissalDate": 1234571490,
-    "alert": {
-      "title": "",
-      "body": ""
-    },
-    "interruptionLevel": "passive"
+    "dismissalDate": 1234571490
   }
 }

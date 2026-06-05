@@ -31,9 +31,7 @@
       "color": "#2196F3"
     },
     "alert": {
-      "title": "",
-      "body": ""
-    },
-    "interruptionLevel": "passive"
+      "title": ""
+    }
   }
 }

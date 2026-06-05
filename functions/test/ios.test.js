@@ -253,8 +253,8 @@ describe('live-activity createPayload via FCM', () => {
     const aps = payload.apns.payload.aps;
     expect(aps['dismissal-date']).toBe(1704067200);
     expect(aps['content-state']).toEqual({ message: '' });
-    expect(aps.alert).toEqual({ title: '', body: '' });
-    expect(aps['interruption-level']).toBe('passive');
+    expect(aps.alert).toBeUndefined();
+    expect(aps['interruption-level']).toBeUndefined();
     expect(aps.sound).toBeUndefined();
 
     dateNowSpy.mockRestore();
@@ -401,7 +401,7 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.payload.aps['content-state'].message).toBe('Hello from HA');
   });
 
-  test('update event synthesizes blank alert without sound when alert is omitted', () => {
+  test('update event uses title-only alert for fast silent delivery when alert is omitted', () => {
     const req = createMockRequest({
       body: {
         push_token: FCM_TOKEN,
@@ -413,8 +413,8 @@ describe('live-activity createPayload via FCM', () => {
       },
     });
     const { payload } = ios.createPayload(req);
-    expect(payload.apns.payload.aps.alert).toEqual({ title: '', body: '' });
-    expect(payload.apns.payload.aps['interruption-level']).toBe('passive');
+    expect(payload.apns.payload.aps.alert).toEqual({ title: '' });
+    expect(payload.apns.payload.aps['interruption-level']).toBeUndefined();
     expect(payload.apns.payload.aps.sound).toBeUndefined();
   });
 
