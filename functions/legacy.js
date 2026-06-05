@@ -350,8 +350,9 @@ function buildLiveActivityPayload(req) {
     // Omitting `body` avoids triggering the Live Activity update chime — only `body`
     // causes iOS to play sound, a bare `title` is enough for fast delivery without noise.
     aps.alert = { title: '' };
+  } else if (event === LiveActivityEvent.END) {
+    aps.alert = defaultLiveActivityAlert(req.body);
   }
-  // end: no alert unless the caller explicitly provided one.
 
   if (process.env.DEBUG === 'true') {
     console.info(
@@ -396,7 +397,7 @@ function buildLiveActivityPayload(req) {
 function defaultLiveActivityAlert(body) {
   return {
     title: body.title ?? '',
-    body: body.message ?? '',
+    body: body.message !== CLEAR_NOTIFICATION ? (body.message ?? '') : '',
   };
 }
 

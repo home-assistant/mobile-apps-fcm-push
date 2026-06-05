@@ -23,6 +23,10 @@
       "title": "Laundry",
       "message": ""
     },
-    "dismissalDate": 1234571490
+    "dismissalDate": 1234571490,
+    "alert": {
+      "title": "Laundry",
+      "body": ""
+    }
   }
 }

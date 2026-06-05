@@ -285,7 +285,7 @@ describe('live-activity createPayload via FCM', () => {
     const aps = payload.apns.payload.aps;
     expect(aps['dismissal-date']).toBe(1704067200);
     expect(aps['content-state']).toEqual({ message: '' });
-    expect(aps.alert).toBeUndefined();
+    expect(aps.alert).toEqual({ title: '', body: '' });
     expect(aps['interruption-level']).toBeUndefined();
     expect(aps.sound).toBeUndefined();
 
