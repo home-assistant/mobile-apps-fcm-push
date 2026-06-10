@@ -15,6 +15,18 @@ const LiveActivityApsKey = Object.freeze({
   STALE_DATE: 'stale-date',
 });
 
+// 'attributes-type' must exactly match the Swift struct name registered with ActivityKit.
+// APNs uses it to look up the registered type on the device, so this value is case-sensitive
+// and cannot change after the app has shipped.
+const ATTRIBUTES_TYPE = 'HALiveActivityAttributes';
+
+// APNs delivery priority for Live Activity pushes. 10 means "send immediately" (the highest
+// priority); it is a string because APNs transmits header values as strings.
+const APNS_PRIORITY_IMMEDIATE = '10';
+
+// FCM analytics label used to identify Live Activity pushes in Firebase reporting.
+const ANALYTICS_LABEL = 'iOSLiveActivityV1';
+
 module.exports = { createPayload };
 
 // Builds an FCM-compatible payload for Live Activity push notifications.
@@ -40,10 +52,7 @@ function createPayload(req) {
 
   if (event === LiveActivityEvent.START) {
     // Push-to-start requires the static attributes that were registered with the activity.
-    // 'attributes-type' must exactly match the Swift struct name — HALiveActivityAttributes —
-    // because APNs uses it to look up the registered ActivityKit type on the device.
-    // This value is case-sensitive and cannot change after the app has shipped.
-    aps[LiveActivityApsKey.ATTRIBUTES_TYPE] = 'HALiveActivityAttributes';
+    aps[LiveActivityApsKey.ATTRIBUTES_TYPE] = ATTRIBUTES_TYPE;
     aps.attributes = {
       tag: data.activity_id ?? data.tag ?? '',
       title: req.body.title ?? '',
@@ -104,14 +113,14 @@ function createPayload(req) {
       // apns-push-type: liveactivity header and the correct apns-topic suffix.
       liveActivityToken: req.body.live_activity_token,
       headers: {
-        'apns-priority': '10',
+        'apns-priority': APNS_PRIORITY_IMMEDIATE,
       },
       payload: {
         aps,
       },
     },
     fcm_options: {
-      analytics_label: 'iOSLiveActivityV1',
+      analytics_label: ANALYTICS_LABEL,
     },
   };
 

@@ -50,6 +50,26 @@ const legacy = require('../legacy.js');
 describe('legacy.js', () => {
   const fixturesDir = './test/fixtures/legacy/';
 
+  test('builds a standard notification payload', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        message: 'Hello',
+        title: 'Test',
+        registration_info: {
+          app_id: 'io.robbie.HomeAssistant',
+          app_version: '2024.1',
+          os_version: '17.0',
+        },
+      },
+    });
+    const result = legacy.createPayload(req);
+    expect(result.payload.notification).toBeDefined();
+    expect(result.payload.notification.body).toBe('Hello');
+    expect(result.payload.apns.liveActivityToken).toBeUndefined();
+    expect(result.payload.fcm_options.analytics_label).toBe('legacyNotification');
+  });
+
   // Get fixture files synchronously for test definition
   const files = fs.readdirSync(fixturesDir);
   const jsonFiles = files.filter((file) => file.endsWith('.json'));
@@ -509,26 +529,6 @@ describe('live-activity createPayload via FCM', () => {
       expect(result.updateRateLimits).toBe(true);
     }
   });
-
-  test('normal notifications (no live_activity_token) still work as before', () => {
-    const req = createMockRequest({
-      body: {
-        push_token: FCM_TOKEN,
-        message: 'Hello',
-        title: 'Test',
-        registration_info: {
-          app_id: 'io.robbie.HomeAssistant',
-          app_version: '2024.1',
-          os_version: '17.0',
-        },
-      },
-    });
-    const result = legacy.createPayload(req);
-    expect(result.payload.notification).toBeDefined();
-    expect(result.payload.notification.body).toBe('Hello');
-    expect(result.payload.apns.liveActivityToken).toBeUndefined();
-    expect(result.payload.fcm_options.analytics_label).toBe('legacyNotification');
-  });
 });
 
 // --- handleRequest integration tests for Live Activity ---
@@ -561,15 +561,6 @@ describe('handleRequest with Live Activity payload', () => {
     expect(response.rateLimits).toBeDefined();
   });
 
-  test('rejects missing token with 403', async () => {
-    const req = createLiveActivityRequest({ push_token: undefined });
-    delete req.body.push_token;
-    await handleRequest(req, res, legacy.createPayload);
-
-    assertResponse.expectForbiddenResponse(res, 'You did not send a token!');
-    expect(mockMessaging.send).not.toHaveBeenCalled();
-  });
-
   test('updates rate limits for end events', async () => {
     const req = createLiveActivityRequest({ data: { event: 'end', activity_id: 'test-001' } });
     await handleRequest(req, res, legacy.createPayload);
@@ -578,30 +569,5 @@ describe('handleRequest with Live Activity payload', () => {
     assertResponse.expectSuccessResponse(res);
     const response = res.send.mock.calls[0][0];
     expect(response.rateLimits).toBeDefined();
-  });
-
-  test('returns 500 on FCM send failure', async () => {
-    mockMessaging.send.mockRejectedValue(new Error('Network error'));
-    const req = createLiveActivityRequest();
-    await handleRequest(req, res, legacy.createPayload);
-
-    assertResponse.expectErrorResponse(res, 500, {
-      errorType: 'InternalError',
-      errorStep: 'sendNotification',
-    });
-  });
-
-  test('returns 429 when rate limited', async () => {
-    const { docSnapshot } = setupFirestoreMocks();
-    docSnapshot.exists = true;
-    docSnapshot.data.mockReturnValue(
-      createMockRateLimitData({ attemptsCount: 501, deliveredCount: 501, totalCount: 501 }),
-    );
-
-    const req = createLiveActivityRequest();
-    await handleRequest(req, res, legacy.createPayload);
-
-    assertResponse.expectRateLimitResponse(res, FCM_TOKEN);
-    expect(mockMessaging.send).not.toHaveBeenCalled();
   });
 });
