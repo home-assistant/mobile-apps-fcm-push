@@ -1,0 +1,32 @@
+{
+  "input": {
+    "push_token": "test:fcm-token-123",
+    "live_activity_token": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "message": "clear_notification",
+    "title": "Laundry",
+    "registration_info": {
+      "app_id": "io.robbie.HomeAssistant",
+      "app_version": "2024.1",
+      "os_version": "17.0"
+    },
+    "data": {
+      "event": "end",
+      "activity_id": "laundry-001",
+      "dismissal_date": 1234571490
+    }
+  },
+  "expected": {
+    "updateRateLimits": true,
+    "liveActivityToken": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "apsEvent": "end",
+    "contentState": {
+      "title": "Laundry",
+      "message": ""
+    },
+    "dismissalDate": 1234571490,
+    "alert": {
+      "title": "Laundry",
+      "body": ""
+    }
+  }
+}
