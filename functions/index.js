@@ -1,13 +1,12 @@
 'use strict';
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const { initializeApp } = require('firebase-admin/app');
 
 // We need to initialize the app before importing modules that want Firestore.
 initializeApp();
 
 const android = require('./android');
-const ios = require('./ios');
 const legacy = require('./legacy');
 
 const region = (functions.config().app && functions.config().app.region) || 'us-central1';
@@ -21,10 +20,6 @@ const { handleRequest, handleCheckRateLimits } = require('./handlers');
 
 exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) =>
   handleRequest(req, res, android.createPayload),
-);
-
-exports.iOSV1 = regionalFunctions.https.onRequest(async (req, res) =>
-  handleRequest(req, res, ios.createPayload),
 );
 
 exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) =>
