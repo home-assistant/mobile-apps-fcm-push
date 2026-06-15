@@ -34,6 +34,13 @@ module.exports = {
         });
       }
 
+      // Stringify any children of req.body.data (except 'actions') that are an array or object
+      Object.keys(req.body.data).forEach((key) => {
+        if (key !== 'actions' && req.body.data[key] !== null && typeof req.body.data[key] === 'object') {
+          req.body.data[key] = JSON.stringify(req.body.data[key]);
+        }
+      });
+
       // Allow setting of ttl
       // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidConfig.html#optional-ttl
       if (req.body.data.ttl) {
