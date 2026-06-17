@@ -34,13 +34,6 @@ module.exports = {
         });
       }
 
-      // Stringify any children of req.body.data (except 'actions') that are an array or object
-      Object.keys(req.body.data).forEach((key) => {
-        if (key !== 'actions' && req.body.data[key] !== null && typeof req.body.data[key] === 'object') {
-          req.body.data[key] = JSON.stringify(req.body.data[key]);
-        }
-      });
-
       // Allow setting of ttl
       // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidConfig.html#optional-ttl
       if (req.body.data.ttl) {
@@ -132,7 +125,13 @@ module.exports = {
 
       androidNotificationKeys.forEach((key) => {
         if (Object.hasOwn(req.body.data, key)) {
-          payload.data[key] = String(req.body.data[key]);
+          // If the value is an object, stringify it. Convert everything else to a string.
+          // This is because FCM data payloads must be strings.
+          if (typeof req.body.data[key] === 'object') {
+            payload.data[key] = JSON.stringify(req.body.data[key]);
+          } else {
+            payload.data[key] = String(req.body.data[key]);
+          }
         }
       });
     }
