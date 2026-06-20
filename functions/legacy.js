@@ -1,7 +1,26 @@
+'use strict';
+
 const path = require('path');
+const liveActivity = require('./live-activity.js');
 
 module.exports = {
   createPayload: (req) => {
+    if (req.body.live_activity_token) {
+      return liveActivity.createPayload(req);
+    }
+
+    if (process.env.DEBUG === 'true' && req.body.data?.live_update === true) {
+      console.info(
+        '[legacy-live-activity]',
+        JSON.stringify({
+          mode: 'fallback_notification',
+          reason: 'missing_live_activity_token',
+          tag: req.body.data?.tag ?? null,
+          activity_id: req.body.data?.activity_id ?? null,
+        }),
+      );
+    }
+
     const payload = {
       notification: {
         body: req.body.message,
