@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: true
+        default: main
 
 jobs:
   build-container:
@@ -12,6 +18,8 @@ jobs:
       image: ${{ steps.build.outputs.image }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
@@ -37,6 +45,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
@@ -58,6 +68,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@v15.20.0
