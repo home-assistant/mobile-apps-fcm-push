@@ -164,7 +164,6 @@ function buildContentState(body, data) {
   if (data.chronometer !== undefined) state.chronometer = data.chronometer;
   if (data.notification_icon !== undefined) state.icon = data.notification_icon;
   if (data.notification_icon_color !== undefined) state.color = data.notification_icon_color;
-  // url: path/URL to open when the activity is tapped (mirrors actionable notifications).
   if (data.url !== undefined) state.url = data.url;
   if (data.when !== undefined) {
     state.countdown_end = data.when_relative
