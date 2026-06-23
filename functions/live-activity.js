@@ -57,6 +57,12 @@ function createPayload(req) {
       tag: data.activity_id ?? data.tag ?? '',
       title: req.body.title ?? '',
     };
+    // Server that started the activity, so a tap can open the originating server when the
+    // user has several. Only sent when present; the iOS attribute is optional for compatibility.
+    const startWebhookId = req.body.registration_info && req.body.registration_info.webhook_id;
+    if (startWebhookId) {
+      aps.attributes.webhook_id = startWebhookId;
+    }
   }
 
   if (event === LiveActivityEvent.END) {
@@ -158,6 +164,7 @@ function buildContentState(body, data) {
   if (data.chronometer !== undefined) state.chronometer = data.chronometer;
   if (data.notification_icon !== undefined) state.icon = data.notification_icon;
   if (data.notification_icon_color !== undefined) state.color = data.notification_icon_color;
+  if (data.url !== undefined) state.url = data.url;
   if (data.when !== undefined) {
     state.countdown_end = data.when_relative
       ? Math.floor(Date.now() / 1000) + data.when
@@ -175,6 +182,7 @@ function buildContentState(body, data) {
     if (cs.countdown_end !== undefined) state.countdown_end = cs.countdown_end;
     if (cs.icon !== undefined) state.icon = cs.icon;
     if (cs.color !== undefined) state.color = cs.color;
+    if (cs.url !== undefined) state.url = cs.url;
   }
 
   return state;

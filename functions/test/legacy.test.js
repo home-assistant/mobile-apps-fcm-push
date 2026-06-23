@@ -250,6 +250,52 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.payload.aps.attributes).toEqual({ tag: 'laundry-001', title: 'Laundry' });
   });
 
+  test('start event includes webhook_id in attributes when registration_info has one', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Laundry',
+        registration_info: { app_id: 'io.robbie.HomeAssistant', webhook_id: 'wh-123' },
+        data: { event: 'start', activity_id: 'laundry-001' },
+      },
+    });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.payload.aps.attributes).toEqual({
+      tag: 'laundry-001',
+      title: 'Laundry',
+      webhook_id: 'wh-123',
+    });
+  });
+
+  test('start event omits webhook_id from attributes when registration_info lacks one', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Laundry',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'start', activity_id: 'laundry-001' },
+      },
+    });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.payload.aps.attributes.webhook_id).toBeUndefined();
+  });
+
+  test('url in data is forwarded into content-state for tap navigation', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        message: 'Laundry running',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'update', url: '/lovelace/laundry' },
+      },
+    });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.payload.aps['content-state'].url).toBe('/lovelace/laundry');
+  });
+
   test('start event synthesizes alert without sound when alert is omitted', () => {
     const req = createMockRequest({
       body: {
