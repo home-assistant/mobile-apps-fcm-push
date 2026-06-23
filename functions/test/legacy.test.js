@@ -439,6 +439,7 @@ describe('live-activity createPayload via FCM', () => {
           notification_icon: 'mdi:washing-machine',
           notification_icon_color: '#2196F3',
           background_color: '#101820',
+          text_color: '#FFFFFF',
         },
       },
     });
@@ -453,6 +454,7 @@ describe('live-activity createPayload via FCM', () => {
       icon: 'mdi:washing-machine',
       color: '#2196F3',
       background_color: '#101820',
+      text_color: '#FFFFFF',
     });
   });
 
