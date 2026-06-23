@@ -296,6 +296,20 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.payload.aps['content-state'].url).toBe('/lovelace/laundry');
   });
 
+  test('background_color in data is forwarded into content-state', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        message: 'Laundry running',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'update', background_color: '#101820' },
+      },
+    });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.payload.aps['content-state'].background_color).toBe('#101820');
+  });
+
   test('start event synthesizes alert without sound when alert is omitted', () => {
     const req = createMockRequest({
       body: {
@@ -424,6 +438,7 @@ describe('live-activity createPayload via FCM', () => {
           chronometer: true,
           notification_icon: 'mdi:washing-machine',
           notification_icon_color: '#2196F3',
+          background_color: '#101820',
         },
       },
     });
@@ -437,6 +452,7 @@ describe('live-activity createPayload via FCM', () => {
       chronometer: true,
       icon: 'mdi:washing-machine',
       color: '#2196F3',
+      background_color: '#101820',
     });
   });
 
