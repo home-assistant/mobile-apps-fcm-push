@@ -11,15 +11,15 @@ jobs:
     outputs:
       image: ${{ steps.build.outputs.image }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
 
       - name: Configure Docker for Google Cloud
         run: gcloud auth configure-docker gcr.io
@@ -36,15 +36,15 @@ jobs:
     needs: build-container
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           credentials_json: ${{ secrets.DEPLOYER_SERVICE_ACCOUNT }}
 
       - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v3
+        uses: google-github-actions/deploy-cloudrun@2028e2d7d30a78c6910e0632e48dd561b064884d # v3.0.1
         with:
           service: mobile-push
           image: ${{ needs.build-container.outputs.image }}
@@ -57,10 +57,10 @@ jobs:
     needs: deploy-cloud-run
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@v15.20.0
+        uses: w9jds/firebase-action@47ca9cd931889c1fb7bc67f51597278159cb7c9e # v15.20.0
         with:
           args: deploy --only hosting
         env:
