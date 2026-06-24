@@ -166,6 +166,7 @@ function buildContentState(body, data) {
   if (data.notification_icon_color !== undefined) state.color = data.notification_icon_color;
   if (data.background_color !== undefined) state.background_color = data.background_color;
   if (data.text_color !== undefined) state.text_color = data.text_color;
+  if (data.progress_bar_color !== undefined) state.progress_bar_color = data.progress_bar_color;
   if (data.url !== undefined) state.url = data.url;
   if (data.when !== undefined) {
     state.countdown_end = data.when_relative
@@ -186,6 +187,7 @@ function buildContentState(body, data) {
     if (cs.color !== undefined) state.color = cs.color;
     if (cs.background_color !== undefined) state.background_color = cs.background_color;
     if (cs.text_color !== undefined) state.text_color = cs.text_color;
+    if (cs.progress_bar_color !== undefined) state.progress_bar_color = cs.progress_bar_color;
     if (cs.url !== undefined) state.url = cs.url;
   }
 

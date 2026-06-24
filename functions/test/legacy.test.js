@@ -440,6 +440,7 @@ describe('live-activity createPayload via FCM', () => {
           notification_icon_color: '#2196F3',
           background_color: '#101820',
           text_color: '#FFFFFF',
+          progress_bar_color: '#FF9800',
         },
       },
     });
@@ -455,6 +456,7 @@ describe('live-activity createPayload via FCM', () => {
       color: '#2196F3',
       background_color: '#101820',
       text_color: '#FFFFFF',
+      progress_bar_color: '#FF9800',
     });
   });
 
