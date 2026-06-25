@@ -49,6 +49,7 @@ module.exports = {
       const androidNotificationKeys = [
         'icon',
         'color',
+        'notification_icon_color',
         'sound',
         'tag',
         'clickAction',
