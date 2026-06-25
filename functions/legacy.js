@@ -162,6 +162,16 @@ module.exports = {
             needsMutableContent = true;
           }
 
+          // Kiosk command values (kiosk_set_brightness / kiosk_set_volume). Checked with
+          // !== undefined so a value of 0 (mute / minimum brightness) is preserved.
+          if (req.body.data.level !== undefined) {
+            payload.apns.payload.level = req.body.data.level;
+          }
+
+          if (req.body.data.volume !== undefined) {
+            payload.apns.payload.volume = req.body.data.volume;
+          }
+
           if (req.body.data.action_data) {
             payload.apns.payload.homeassistant = req.body.data.action_data;
             needsCategory = true;
