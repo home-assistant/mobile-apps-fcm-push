@@ -162,8 +162,7 @@ module.exports = {
             needsMutableContent = true;
           }
 
-          // Kiosk command values (kiosk_set_brightness / kiosk_set_volume). Checked with
-          // !== undefined so a value of 0 (mute / minimum brightness) is preserved.
+          // Kiosk command values (kiosk_set_brightness / kiosk_set_volume)
           if (req.body.data.level !== undefined) {
             payload.apns.payload.level = req.body.data.level;
           }
