@@ -162,12 +162,13 @@ module.exports = {
             needsMutableContent = true;
           }
 
-          // Kiosk command values (kiosk_set_brightness / kiosk_set_volume)
           if (req.body.data.level !== undefined) {
+            // Kiosk command value for kiosk_set_brightness
             payload.apns.payload.level = req.body.data.level;
           }
 
           if (req.body.data.volume !== undefined) {
+            // Kiosk command value for kiosk_set_volume
             payload.apns.payload.volume = req.body.data.volume;
           }
 
