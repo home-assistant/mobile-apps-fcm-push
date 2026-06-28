@@ -162,6 +162,16 @@ module.exports = {
             needsMutableContent = true;
           }
 
+          if (req.body.data.level !== undefined) {
+            // Kiosk command value for kiosk_set_brightness
+            payload.apns.payload.level = req.body.data.level;
+          }
+
+          if (req.body.data.volume !== undefined) {
+            // Kiosk command value for kiosk_set_volume
+            payload.apns.payload.volume = req.body.data.volume;
+          }
+
           if (req.body.data.action_data) {
             payload.apns.payload.homeassistant = req.body.data.action_data;
             needsCategory = true;
