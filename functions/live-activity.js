@@ -54,7 +54,7 @@ function createPayload(req) {
     // Push-to-start requires the static attributes that were registered with the activity.
     aps[LiveActivityApsKey.ATTRIBUTES_TYPE] = ATTRIBUTES_TYPE;
     aps.attributes = {
-      tag: data.activity_id ?? data.tag ?? '',
+      tag: data.tag ?? '',
       title: req.body.title ?? '',
     };
     // Server that started the activity, so a tap can open the originating server when the
@@ -121,9 +121,8 @@ function createPayload(req) {
   // APNs deliver only the most recent one, so the user ends up with a single Live Activity
   // instead of several. Scoped to start events on purpose: updates and ends must each be
   // delivered so the activity reflects its latest state and can be dismissed.
-  const collapseId = data.activity_id ?? data.tag;
-  if (event === LiveActivityEvent.START && collapseId) {
-    headers['apns-collapse-id'] = collapseId;
+  if (event === LiveActivityEvent.START) {
+    headers['apns-collapse-id'] = data.tag;
   }
 
   const payload = {
