@@ -112,15 +112,27 @@ function createPayload(req) {
     );
   }
 
+  const headers = {
+    'apns-priority': APNS_PRIORITY_IMMEDIATE,
+  };
+
+  // Coalesce duplicate start pushes for the same activity. If several starts for the same
+  // activity are queued by APNs while the device is offline, the collapse identifier makes
+  // APNs deliver only the most recent one, so the user ends up with a single Live Activity
+  // instead of several. Scoped to start events on purpose: updates and ends must each be
+  // delivered so the activity reflects its latest state and can be dismissed.
+  const collapseId = data.activity_id ?? data.tag;
+  if (event === LiveActivityEvent.START && collapseId) {
+    headers['apns-collapse-id'] = collapseId;
+  }
+
   const payload = {
     apns: {
       // The liveActivityToken (camelCase) tells Firebase Admin SDK v13.5.0+ to route
       // this message as a Live Activity notification. FCM automatically sets the
       // apns-push-type: liveactivity header and the correct apns-topic suffix.
       liveActivityToken: req.body.live_activity_token,
-      headers: {
-        'apns-priority': APNS_PRIORITY_IMMEDIATE,
-      },
+      headers,
       payload: {
         aps,
       },
