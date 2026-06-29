@@ -121,7 +121,8 @@ function createPayload(req) {
   // APNs deliver only the most recent one, so the user ends up with a single Live Activity
   // instead of several. Scoped to start events on purpose: updates and ends must each be
   // delivered so the activity reflects its latest state and can be dismissed.
-  if (event === LiveActivityEvent.START) {
+  // Only set when a tag is present: APNs rejects an empty apns-collapse-id header value.
+  if (event === LiveActivityEvent.START && data.tag) {
     headers['apns-collapse-id'] = data.tag;
   }
 
