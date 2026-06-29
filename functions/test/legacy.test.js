@@ -282,6 +282,62 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.payload.aps.attributes.webhook_id).toBeUndefined();
   });
 
+  test('start event sets apns-collapse-id to the activity id so duplicate starts coalesce', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Laundry',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'start', activity_id: 'laundry-001' },
+      },
+    });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.headers['apns-collapse-id']).toBe('laundry-001');
+  });
+
+  test('start event falls back to tag for apns-collapse-id when activity_id is absent', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Laundry',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'start', tag: 'laundry-tag' },
+      },
+    });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.headers['apns-collapse-id']).toBe('laundry-tag');
+  });
+
+  test('start event omits apns-collapse-id when no activity id or tag is provided', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Laundry',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'start' },
+      },
+    });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.headers['apns-collapse-id']).toBeUndefined();
+  });
+
+  test('update event does not set apns-collapse-id so every update is delivered', () => {
+    const req = createLiveActivityRequest({
+      data: { event: 'update', activity_id: 'laundry-001' },
+    });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.headers['apns-collapse-id']).toBeUndefined();
+  });
+
+  test('end event does not set apns-collapse-id so the dismissal is delivered', () => {
+    const req = createLiveActivityRequest({ data: { event: 'end', activity_id: 'laundry-001' } });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.headers['apns-collapse-id']).toBeUndefined();
+  });
+
   test('url in data is forwarded into content-state for tap navigation', () => {
     const req = createMockRequest({
       body: {
