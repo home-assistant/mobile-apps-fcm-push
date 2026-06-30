@@ -56,6 +56,10 @@ function createPayload(req) {
     aps.attributes = {
       tag: data.activity_id ?? data.tag ?? '',
       title: req.body.title ?? '',
+      // Server send-time (epoch seconds). When Core re-sends a push-to-start before it has the
+      // activity's push token, two activities can briefly exist for one tag; the app keeps the one
+      // with the largest started_at and dismisses the rest, collapsing duplicates to the newest.
+      started_at: now,
     };
     // Server that started the activity, so a tap can open the originating server when the
     // user has several. Only sent when present; the iOS attribute is optional for compatibility.
