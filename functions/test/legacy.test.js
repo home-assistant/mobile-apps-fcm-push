@@ -278,7 +278,7 @@ describe('live-activity createPayload via FCM', () => {
 
   test('update and end events do not carry started_at (it is a start-only attribute)', () => {
     for (const event of ['update', 'end']) {
-      const req = createLiveActivityRequest({ data: { event, activity_id: 'laundry-001' } });
+      const req = createLiveActivityRequest({ data: { event, tag: 'laundry-001' } });
       const { payload } = legacy.createPayload(req);
       expect(payload.apns.payload.aps.attributes).toBeUndefined();
     }
