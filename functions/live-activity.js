@@ -24,7 +24,7 @@ const ATTRIBUTES_TYPE = 'HALiveActivityAttributes';
 // priority); it is a string because APNs transmits header values as strings.
 const APNS_PRIORITY_IMMEDIATE = '10';
 
-// Power-conserving priority used for silent (non-urgent) updates; APNs may delay or coalesce them.
+// Power-conserving priority used for silent (non-urgent) updates; APNs may delay or coalesce them. (https://developer.apple.com/documentation/activitykit/starting-and-updating-live-activities-with-activitykit-push-notifications#Determine-the-update-frequency)
 const APNS_PRIORITY_LOW = '5';
 
 // FCM analytics label used to identify Live Activity pushes in Firebase reporting.
