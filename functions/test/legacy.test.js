@@ -247,7 +247,41 @@ describe('live-activity createPayload via FCM', () => {
     });
     const { payload } = legacy.createPayload(req);
     expect(payload.apns.payload.aps['attributes-type']).toBe('HALiveActivityAttributes');
-    expect(payload.apns.payload.aps.attributes).toEqual({ tag: 'laundry-001', title: 'Laundry' });
+    expect(payload.apns.payload.aps.attributes).toEqual({
+      tag: 'laundry-001',
+      title: 'Laundry',
+      started_at: expect.any(Number),
+    });
+  });
+
+  test('start event stamps started_at with the server send-time in epoch seconds', () => {
+    const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(1704067200000);
+
+    try {
+      const req = createMockRequest({
+        body: {
+          push_token: FCM_TOKEN,
+          live_activity_token: LIVE_ACTIVITY_TOKEN,
+          title: 'Laundry',
+          registration_info: { app_id: 'io.robbie.HomeAssistant' },
+          data: { event: 'start', tag: 'laundry-001' },
+        },
+      });
+      const { payload } = legacy.createPayload(req);
+      const aps = payload.apns.payload.aps;
+      expect(aps.attributes.started_at).toBe(1704067200);
+      expect(aps.attributes.started_at).toBe(aps.timestamp);
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+  });
+
+  test('update and end events do not carry started_at (it is a start-only attribute)', () => {
+    for (const event of ['update', 'end']) {
+      const req = createLiveActivityRequest({ data: { event, tag: 'laundry-001' } });
+      const { payload } = legacy.createPayload(req);
+      expect(payload.apns.payload.aps.attributes).toBeUndefined();
+    }
   });
 
   test('start event includes webhook_id in attributes when registration_info has one', () => {
@@ -265,6 +299,7 @@ describe('live-activity createPayload via FCM', () => {
       tag: 'laundry-001',
       title: 'Laundry',
       webhook_id: 'wh-123',
+      started_at: expect.any(Number),
     });
   });
 

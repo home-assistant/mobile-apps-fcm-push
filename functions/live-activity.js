@@ -56,6 +56,7 @@ function createPayload(req) {
     aps.attributes = {
       tag: data.tag ?? '',
       title: req.body.title ?? '',
+      started_at: now,
     };
     // Server that started the activity, so a tap can open the originating server when the
     // user has several. Only sent when present; the iOS attribute is optional for compatibility.
