@@ -264,7 +264,7 @@ describe('live-activity createPayload via FCM', () => {
           live_activity_token: LIVE_ACTIVITY_TOKEN,
           title: 'Laundry',
           registration_info: { app_id: 'io.robbie.HomeAssistant' },
-          data: { event: 'start', activity_id: 'laundry-001' },
+          data: { event: 'start', tag: 'laundry-001' },
         },
       });
       const { payload } = legacy.createPayload(req);
