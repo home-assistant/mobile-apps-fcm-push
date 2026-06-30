@@ -116,9 +116,11 @@ function createPayload(req) {
     );
   }
 
+  // Silent updates are non-urgent, so let APNs deliver them at a power-conserving priority. Starts
+  // and ends always go out at the immediate priority so the activity appears and dismisses promptly.
+  const isSilentUpdate = event === LiveActivityEvent.UPDATE && data.silent === true;
   const headers = {
-    // Silent updates are non-urgent, so let APNs deliver them at a power-conserving priority.
-    'apns-priority': data.silent === true ? APNS_PRIORITY_LOW : APNS_PRIORITY_IMMEDIATE,
+    'apns-priority': isSilentUpdate ? APNS_PRIORITY_LOW : APNS_PRIORITY_IMMEDIATE,
   };
 
   // Coalesce duplicate start pushes for the same activity. If several starts for the same
