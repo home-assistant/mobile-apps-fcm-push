@@ -242,7 +242,7 @@ describe('live-activity createPayload via FCM', () => {
         live_activity_token: LIVE_ACTIVITY_TOKEN,
         title: 'Laundry',
         registration_info: { app_id: 'io.robbie.HomeAssistant' },
-        data: { event: 'start', activity_id: 'laundry-001' },
+        data: { event: 'start', tag: 'laundry-001' },
       },
     });
     const { payload } = legacy.createPayload(req);
@@ -257,7 +257,7 @@ describe('live-activity createPayload via FCM', () => {
         live_activity_token: LIVE_ACTIVITY_TOKEN,
         title: 'Laundry',
         registration_info: { app_id: 'io.robbie.HomeAssistant', webhook_id: 'wh-123' },
-        data: { event: 'start', activity_id: 'laundry-001' },
+        data: { event: 'start', tag: 'laundry-001' },
       },
     });
     const { payload } = legacy.createPayload(req);
@@ -275,28 +275,14 @@ describe('live-activity createPayload via FCM', () => {
         live_activity_token: LIVE_ACTIVITY_TOKEN,
         title: 'Laundry',
         registration_info: { app_id: 'io.robbie.HomeAssistant' },
-        data: { event: 'start', activity_id: 'laundry-001' },
+        data: { event: 'start', tag: 'laundry-001' },
       },
     });
     const { payload } = legacy.createPayload(req);
     expect(payload.apns.payload.aps.attributes.webhook_id).toBeUndefined();
   });
 
-  test('start event sets apns-collapse-id to the activity id so duplicate starts coalesce', () => {
-    const req = createMockRequest({
-      body: {
-        push_token: FCM_TOKEN,
-        live_activity_token: LIVE_ACTIVITY_TOKEN,
-        title: 'Laundry',
-        registration_info: { app_id: 'io.robbie.HomeAssistant' },
-        data: { event: 'start', activity_id: 'laundry-001' },
-      },
-    });
-    const { payload } = legacy.createPayload(req);
-    expect(payload.apns.headers['apns-collapse-id']).toBe('laundry-001');
-  });
-
-  test('start event falls back to tag for apns-collapse-id when activity_id is absent', () => {
+  test('start event sets apns-collapse-id to the tag so duplicate starts coalesce', () => {
     const req = createMockRequest({
       body: {
         push_token: FCM_TOKEN,
@@ -310,7 +296,7 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.headers['apns-collapse-id']).toBe('laundry-tag');
   });
 
-  test('start event omits apns-collapse-id when no activity id or tag is provided', () => {
+  test('start event omits apns-collapse-id when no tag is provided', () => {
     const req = createMockRequest({
       body: {
         push_token: FCM_TOKEN,
@@ -321,19 +307,21 @@ describe('live-activity createPayload via FCM', () => {
       },
     });
     const { payload } = legacy.createPayload(req);
-    expect(payload.apns.headers['apns-collapse-id']).toBeUndefined();
+    // The header must be omitted entirely, not set to an empty/undefined value:
+    // APNs rejects an empty apns-collapse-id.
+    expect('apns-collapse-id' in payload.apns.headers).toBe(false);
   });
 
   test('update event does not set apns-collapse-id so every update is delivered', () => {
     const req = createLiveActivityRequest({
-      data: { event: 'update', activity_id: 'laundry-001' },
+      data: { event: 'update', tag: 'laundry-001' },
     });
     const { payload } = legacy.createPayload(req);
     expect(payload.apns.headers['apns-collapse-id']).toBeUndefined();
   });
 
   test('end event does not set apns-collapse-id so the dismissal is delivered', () => {
-    const req = createLiveActivityRequest({ data: { event: 'end', activity_id: 'laundry-001' } });
+    const req = createLiveActivityRequest({ data: { event: 'end', tag: 'laundry-001' } });
     const { payload } = legacy.createPayload(req);
     expect(payload.apns.headers['apns-collapse-id']).toBeUndefined();
   });

@@ -11,7 +11,7 @@
     },
     "data": {
       "event": "start",
-      "activity_id": "laundry-001",
+      "tag": "laundry-001",
       "progress": 0,
       "progress_max": 3600,
       "notification_icon": "mdi:washing-machine",
