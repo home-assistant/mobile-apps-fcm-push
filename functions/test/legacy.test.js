@@ -660,6 +660,36 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.headers['apns-priority']).toBe('10');
   });
 
+  test('apns-priority header is 5 for a silent update', () => {
+    const req = createMockRequest({
+      body: {
+        push_token: FCM_TOKEN,
+        live_activity_token: LIVE_ACTIVITY_TOKEN,
+        title: 'Laundry',
+        registration_info: { app_id: 'io.robbie.HomeAssistant' },
+        data: { event: 'update', tag: 'laundry-001', silent: true },
+      },
+    });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.headers['apns-priority']).toBe('5');
+  });
+
+  test('apns-priority stays 10 for silent start and end events', () => {
+    for (const event of ['start', 'end']) {
+      const req = createMockRequest({
+        body: {
+          push_token: FCM_TOKEN,
+          live_activity_token: LIVE_ACTIVITY_TOKEN,
+          title: 'Laundry',
+          registration_info: { app_id: 'io.robbie.HomeAssistant' },
+          data: { event, tag: 'laundry-001', silent: true },
+        },
+      });
+      const { payload } = legacy.createPayload(req);
+      expect(payload.apns.headers['apns-priority']).toBe('10');
+    }
+  });
+
   test('no apns-push-type or apns-topic headers (FCM sets them)', () => {
     const req = createLiveActivityRequest();
     const { payload } = legacy.createPayload(req);

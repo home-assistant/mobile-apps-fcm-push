@@ -24,6 +24,9 @@ const ATTRIBUTES_TYPE = 'HALiveActivityAttributes';
 // priority); it is a string because APNs transmits header values as strings.
 const APNS_PRIORITY_IMMEDIATE = '10';
 
+// Power-conserving priority used for silent (non-urgent) updates; APNs may delay or coalesce them. (https://developer.apple.com/documentation/activitykit/starting-and-updating-live-activities-with-activitykit-push-notifications#Determine-the-update-frequency)
+const APNS_PRIORITY_LOW = '5';
+
 // FCM analytics label used to identify Live Activity pushes in Firebase reporting.
 const ANALYTICS_LABEL = 'iOSLiveActivityV1';
 
@@ -113,8 +116,11 @@ function createPayload(req) {
     );
   }
 
+  // Silent updates are non-urgent, so let APNs deliver them at a power-conserving priority. Starts
+  // and ends always go out at the immediate priority so the activity appears and dismisses promptly.
+  const isSilentUpdate = event === LiveActivityEvent.UPDATE && data.silent === true;
   const headers = {
-    'apns-priority': APNS_PRIORITY_IMMEDIATE,
+    'apns-priority': isSilentUpdate ? APNS_PRIORITY_LOW : APNS_PRIORITY_IMMEDIATE,
   };
 
   // Coalesce duplicate start pushes for the same activity. If several starts for the same
