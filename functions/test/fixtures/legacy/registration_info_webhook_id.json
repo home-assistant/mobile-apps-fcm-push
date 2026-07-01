@@ -17,6 +17,7 @@
       "alert": {
         "body": "test"
       },
+      "mutableContent": true,
       "sound": "default"
     },
     "webhook_id": "webhook_id_123"

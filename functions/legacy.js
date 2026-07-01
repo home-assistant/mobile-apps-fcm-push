@@ -117,7 +117,6 @@ module.exports = {
         updateRateLimits = false;
       } else {
         let needsCategory = false;
-        let needsMutableContent = false;
 
         if (req.body.data) {
           if (req.body.data.subtitle) {
@@ -159,7 +158,6 @@ module.exports = {
           if (req.body.data.entity_id) {
             payload.apns.payload.entity_id = req.body.data.entity_id;
             needsCategory = true;
-            needsMutableContent = true;
           }
 
           if (req.body.data.level !== undefined) {
@@ -180,7 +178,6 @@ module.exports = {
           if (req.body.data.attachment) {
             payload.apns.payload.attachment = req.body.data.attachment;
             needsCategory = true;
-            needsMutableContent = true;
           }
 
           const addAttachment = (url, contentType) => {
@@ -201,7 +198,6 @@ module.exports = {
             }
 
             needsCategory = true;
-            needsMutableContent = true;
           };
 
           addAttachment(req.body.data.video, 'mpeg4');
@@ -239,7 +235,7 @@ module.exports = {
           payload.apns.payload.aps.category = payload.apns.payload.aps.category.toUpperCase();
         }
 
-        if (needsMutableContent) {
+        if (!payload.apns.payload.aps.contentAvailable) {
           payload.apns.payload.aps.mutableContent = true;
         }
 

@@ -28,6 +28,7 @@
         "body": "test"
       },
       "category": "CUSTOM_CATEGORY",
+      "mutableContent": true,
       "sound": "default"
     },
     "actions": [

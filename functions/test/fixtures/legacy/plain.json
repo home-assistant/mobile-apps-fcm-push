@@ -16,6 +16,7 @@
       "alert": {
         "body": "test"
       },
+      "mutableContent": true,
       "sound": "default"
     }
   }
