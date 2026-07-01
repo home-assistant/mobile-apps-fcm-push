@@ -22,6 +22,7 @@
         "body": "test"
       },
       "badge": 3,
+      "mutableContent": true,
       "sound": "default"
     }
   }

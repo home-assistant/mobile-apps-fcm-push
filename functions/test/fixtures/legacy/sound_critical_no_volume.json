@@ -25,6 +25,7 @@
       "alert": {
         "body": "test"
       },
+      "mutableContent": true,
       "sound": {
         "critical": 1,
         "name": "default",

@@ -19,6 +19,7 @@
       "alert": {
         "body": "test"
       },
+      "mutableContent": true,
       "sound": "default",
       "thread-id": "test_group"
     }

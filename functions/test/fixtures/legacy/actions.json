@@ -25,6 +25,7 @@
         "body": "test"
       },
       "category": "DYNAMIC",
+      "mutableContent": true,
       "sound": "default"
     },
     "actions": [

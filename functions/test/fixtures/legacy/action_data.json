@@ -24,6 +24,7 @@
         "body": "test"
       },
       "category": "DYNAMIC",
+      "mutableContent": true,
       "sound": "default"
     },
     "homeassistant": {

@@ -17,6 +17,7 @@
         "title": "test_push_source",
         "body": "apns-fcm"
       },
+      "mutableContent": true,
       "sound": "default"
     }
   }

@@ -19,6 +19,7 @@
       "alert": {
         "body": "test"
       },
+      "mutableContent": true,
       "sound": "default"
     },
     "presentation_options": ["alert", "badge", "sound"]
