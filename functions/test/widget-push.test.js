@@ -189,6 +189,36 @@ describe('widget-push', () => {
     expect(res.status).toHaveBeenCalledWith(502);
   });
 
+  it('closes the HTTP/2 client and rejects on a stream error', async () => {
+    const handlers = {};
+    const request = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+        return request;
+      }),
+      setEncoding: jest.fn(),
+      end: jest.fn(() => process.nextTick(() => handlers.error?.(new Error('stream boom')))),
+    };
+    const client = { on: jest.fn(), request: jest.fn(() => request), close: jest.fn() };
+    http2.connect.mockReturnValue(client);
+    const res = createMockResponse();
+
+    await widgetPush.sendWidgetPush(widgetRequest(), res);
+
+    expect(client.close).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(502);
+  });
+
+  it('returns 500 when the rate-limit check throws', async () => {
+    mockRateLimiter.recordAttempt.mockRejectedValueOnce(new Error('firestore down'));
+    const res = createMockResponse();
+
+    await widgetPush.sendWidgetPush(widgetRequest(), res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(http2.connect).not.toHaveBeenCalled();
+  });
+
   it('returns 500 when APNs credentials are not configured', async () => {
     delete process.env.APNS_KEY_P8;
     const res = createMockResponse();
