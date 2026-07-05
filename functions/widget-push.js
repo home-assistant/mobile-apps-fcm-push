@@ -138,11 +138,11 @@ async function sendWidgetPush(req, res) {
     return res.status(500).send({ errorMessage: 'APNs credentials are not configured' });
   }
 
-  // Widget pushes go through the same per-token rate limiting as normal
-  // notifications, so a widget push token can't be used to hammer APNs (cost,
-  // throttling, device battery drain). Required lazily so it uses the instance
-  // index.js initialises once the environment is set.
-  const { rateLimiter } = require('./handlers');
+  // Widget pushes are rate-limited per token (with their own daily cap) so a
+  // widget push token can't be used to hammer APNs (cost, throttling, device
+  // battery drain). Required lazily so it uses the instance index.js initialises
+  // once the environment is set.
+  const { widgetRateLimiter: rateLimiter } = require('./handlers');
   let attempt;
   try {
     attempt = await rateLimiter.recordAttempt(token);

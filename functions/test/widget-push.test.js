@@ -11,7 +11,7 @@ const mockRateLimiter = {
   recordSuccess: jest.fn(),
   recordError: jest.fn(),
 };
-jest.mock('../handlers', () => ({ rateLimiter: mockRateLimiter }));
+jest.mock('../handlers', () => ({ widgetRateLimiter: mockRateLimiter }));
 
 const widgetPush = require('../widget-push');
 
