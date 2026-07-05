@@ -112,6 +112,16 @@ function postToApns(host, deviceToken, headers, body) {
   });
 }
 
+// Records the send outcome for a token, best-effort — the push has already been
+// sent, so a rate-limiter write failure here must not change the response.
+async function recordOutcome(rateLimiter, token, succeeded) {
+  try {
+    await (succeeded ? rateLimiter.recordSuccess(token) : rateLimiter.recordError(token));
+  } catch {
+    // Accounting is best-effort and must not affect delivery.
+  }
+}
+
 // Handles a widget push_subscription payload by sending a silent WidgetKit
 // refresh straight to APNs.
 async function sendWidgetPush(req, res) {
@@ -126,6 +136,27 @@ async function sendWidgetPush(req, res) {
   }
   if (!process.env.APNS_KEY_P8 || !process.env.APNS_KEY_ID || !process.env.APNS_TEAM_ID) {
     return res.status(500).send({ errorMessage: 'APNs credentials are not configured' });
+  }
+
+  // Widget pushes are rate-limited per token (with their own daily cap) so a
+  // widget push token can't be used to hammer APNs (cost, throttling, device
+  // battery drain). Required lazily so it uses the instance index.js initialises
+  // once the environment is set.
+  const { widgetRateLimiter: rateLimiter } = require('./handlers');
+  let attempt;
+  try {
+    attempt = await rateLimiter.recordAttempt(token);
+  } catch (err) {
+    return res.status(500).send({ errorMessage: `Rate limit check failed: ${err.message}` });
+  }
+  if (attempt.isRateLimited) {
+    return res.status(429).send({
+      errorType: 'RateLimited',
+      message:
+        'The given target has reached the maximum number of notifications allowed per day. Please try again later.',
+      target: token,
+      rateLimits: attempt.rateLimits,
+    });
   }
 
   const headers = {
@@ -158,6 +189,7 @@ async function sendWidgetPush(req, res) {
   }
 
   if (result.status === 200) {
+    await recordOutcome(rateLimiter, token, true);
     return res.status(201).send({
       target: token,
       messageId: result.apnsId,
@@ -165,6 +197,7 @@ async function sendWidgetPush(req, res) {
     });
   }
 
+  await recordOutcome(rateLimiter, token, false);
   return res.status(result.status || 502).send({
     errorMessage: `APNs rejected the widget push: ${result.body || 'unknown error'}`,
   });

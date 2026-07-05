@@ -6,6 +6,13 @@ const { createMockRequest, createMockResponse } = require('./utils/mock-factorie
 jest.mock('node:http2', () => ({ connect: jest.fn() }));
 const http2 = require('node:http2');
 
+const mockRateLimiter = {
+  recordAttempt: jest.fn(),
+  recordSuccess: jest.fn(),
+  recordError: jest.fn(),
+};
+jest.mock('../handlers', () => ({ widgetRateLimiter: mockRateLimiter }));
+
 const widgetPush = require('../widget-push');
 
 const WIDGET_TOKEN = '80f7d67347204c7dda85d331a95ec31c1e3c62b9173836ada8ed9abf';
@@ -65,6 +72,9 @@ describe('widget-push', () => {
     process.env.APNS_KEY_P8 = TEST_P8;
     process.env.APNS_KEY_ID = 'KEY1234567';
     process.env.APNS_TEAM_ID = 'TEAM123456';
+    mockRateLimiter.recordAttempt.mockResolvedValue({ isRateLimited: false, rateLimits: {} });
+    mockRateLimiter.recordSuccess.mockResolvedValue({});
+    mockRateLimiter.recordError.mockResolvedValue({});
   });
 
   it('returns 201 and echoes the apns-id on a successful send', async () => {
@@ -81,6 +91,28 @@ describe('widget-push', () => {
         pushType: 'widgets',
       }),
     );
+  });
+
+  it('rate-limits per token and returns 429 without reaching APNs', async () => {
+    mockRateLimiter.recordAttempt.mockResolvedValueOnce({
+      isRateLimited: true,
+      rateLimits: { successful: 500 },
+    });
+    const res = createMockResponse();
+
+    await widgetPush.sendWidgetPush(widgetRequest(), res);
+
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(http2.connect).not.toHaveBeenCalled();
+  });
+
+  it('records the attempt outcome with the rate limiter on success', async () => {
+    mockApns([{ status: 200, apnsId: 'x' }]);
+
+    await widgetPush.sendWidgetPush(widgetRequest(), createMockResponse());
+
+    expect(mockRateLimiter.recordAttempt).toHaveBeenCalledWith(WIDGET_TOKEN);
+    expect(mockRateLimiter.recordSuccess).toHaveBeenCalledWith(WIDGET_TOKEN);
   });
 
   it('sends the widgets push type, widget topic and device path', async () => {

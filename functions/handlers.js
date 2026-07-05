@@ -5,6 +5,9 @@ const { getMessaging } = require('firebase-admin/messaging');
 const { FirestoreRateLimiter, ValkeyRateLimiter } = require('./rate-limiter');
 
 const MAX_NOTIFICATIONS_PER_DAY = parseInt(process.env.MAX_NOTIFICATIONS_PER_DAY || '500');
+// Widget pushes get a separate, lower daily cap: Apple's WidgetKit push budget is
+// small, so a widget token needs far fewer sends than a normal device.
+const MAX_WIDGET_PUSHES_PER_DAY = parseInt(process.env.MAX_WIDGET_PUSHES_PER_DAY || '100');
 const REGION = (process.env.REGION || 'us-central1').toLowerCase();
 
 const usingCloudFunctions = process.env.FUNCTION_TARGET !== undefined;
@@ -13,19 +16,24 @@ const messaging = getMessaging();
 const logging = new Logging();
 const debug = process.env.DEBUG === 'true';
 
-// Use Valkey rate limiter if Valkey config is available, otherwise use Firestore
-let rateLimiter;
+// Use Valkey rate limiter if Valkey config is available, otherwise use Firestore.
 const useValkey = process.env.VALKEY_HOST && process.env.VALKEY_PORT;
-if (useValkey) {
-  rateLimiter = new ValkeyRateLimiter(
-    MAX_NOTIFICATIONS_PER_DAY,
-    debug,
-    process.env.VALKEY_HOST,
-    parseInt(process.env.VALKEY_PORT, 10),
-  );
-} else {
-  rateLimiter = new FirestoreRateLimiter(MAX_NOTIFICATIONS_PER_DAY, debug);
+function buildRateLimiter(maxPerDay) {
+  if (useValkey) {
+    return new ValkeyRateLimiter(
+      maxPerDay,
+      debug,
+      process.env.VALKEY_HOST,
+      parseInt(process.env.VALKEY_PORT, 10),
+    );
+  }
+  return new FirestoreRateLimiter(maxPerDay, debug);
 }
+
+const rateLimiter = buildRateLimiter(MAX_NOTIFICATIONS_PER_DAY);
+// Separate instance so widgets have their own daily cap; widget tokens are a
+// different key namespace from FCM tokens, so their counters never collide.
+const widgetRateLimiter = buildRateLimiter(MAX_WIDGET_PUSHES_PER_DAY);
 
 async function handleCheckRateLimits(req, res) {
   const { push_token: token } = req.body;
@@ -348,3 +356,4 @@ function buildLogMetadata(req) {
 
 exports.handleRequest = handleRequest;
 exports.handleCheckRateLimits = handleCheckRateLimits;
+exports.widgetRateLimiter = widgetRateLimiter;
