@@ -348,3 +348,4 @@ function buildLogMetadata(req) {
 
 exports.handleRequest = handleRequest;
 exports.handleCheckRateLimits = handleCheckRateLimits;
+exports.rateLimiter = rateLimiter;
