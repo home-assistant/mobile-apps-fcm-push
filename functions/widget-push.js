@@ -29,6 +29,12 @@ const WIDGET_TOPIC_SUFFIX = '.push-type.widgets';
 // sign once and reuse well within the window.
 const JWT_TTL_MS = 40 * 60 * 1000;
 
+// The token and app id go straight into the APNs :path and apns-topic, so reject
+// anything malformed before building the request: device tokens are hex, bundle
+// ids are reverse-DNS labels (letters, digits, dots, hyphens).
+const HEX_TOKEN = /^[0-9a-f]+$/i;
+const BUNDLE_ID = /^[A-Za-z0-9.-]+$/;
+
 // Secret Manager names, injected as env vars at runtime via defineSecret/runWith.
 const SECRETS = ['APNS_KEY_P8', 'APNS_KEY_ID', 'APNS_TEAM_ID'];
 
@@ -80,7 +86,10 @@ function providerToken() {
 function postToApns(host, deviceToken, headers, body) {
   return new Promise((resolve, reject) => {
     const client = http2.connect(`https://${host}`);
-    client.on('error', reject);
+    client.on('error', (err) => {
+      client.close();
+      reject(err);
+    });
 
     const request = client.request({
       ':method': 'POST',
@@ -133,6 +142,12 @@ async function sendWidgetPush(req, res) {
   }
   if (!appId) {
     return res.status(400).send({ errorMessage: 'Missing registration_info.app_id' });
+  }
+  if (!HEX_TOKEN.test(token)) {
+    return res.status(400).send({ errorMessage: 'Invalid push token format' });
+  }
+  if (!BUNDLE_ID.test(appId)) {
+    return res.status(400).send({ errorMessage: 'Invalid app id format' });
   }
   if (!process.env.APNS_KEY_P8 || !process.env.APNS_KEY_ID || !process.env.APNS_TEAM_ID) {
     return res.status(500).send({ errorMessage: 'APNs credentials are not configured' });

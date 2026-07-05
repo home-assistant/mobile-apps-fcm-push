@@ -156,6 +156,39 @@ describe('widget-push', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
+  it('rejects a non-hex push token without reaching APNs', async () => {
+    const res = createMockResponse();
+    await widgetPush.sendWidgetPush(widgetRequest({ push_token: `${WIDGET_TOKEN}/../evil` }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(http2.connect).not.toHaveBeenCalled();
+  });
+
+  it('rejects an app id with illegal characters without reaching APNs', async () => {
+    const res = createMockResponse();
+    await widgetPush.sendWidgetPush(
+      widgetRequest({ registration_info: { app_id: 'io.test.HomeAssistant\r\nx-evil: 1' } }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(http2.connect).not.toHaveBeenCalled();
+  });
+
+  it('closes the HTTP/2 client and rejects on a session error', async () => {
+    const request = { on: jest.fn().mockReturnThis(), setEncoding: jest.fn(), end: jest.fn() };
+    const client = { on: jest.fn(), request: jest.fn(() => request), close: jest.fn() };
+    client.on.mockImplementation((event, cb) => {
+      if (event === 'error') process.nextTick(() => cb(new Error('boom')));
+      return client;
+    });
+    http2.connect.mockReturnValue(client);
+    const res = createMockResponse();
+
+    await widgetPush.sendWidgetPush(widgetRequest(), res);
+
+    expect(client.close).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(502);
+  });
+
   it('returns 500 when APNs credentials are not configured', async () => {
     delete process.env.APNS_KEY_P8;
     const res = createMockResponse();
