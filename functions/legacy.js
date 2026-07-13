@@ -170,6 +170,11 @@ module.exports = {
             payload.apns.payload.volume = req.body.data.volume;
           }
 
+          if (req.body.data.mode !== undefined) {
+            // Kiosk command value for kiosk_set_screensaver_mode
+            payload.apns.payload.mode = req.body.data.mode;
+          }
+
           if (req.body.data.action_data) {
             payload.apns.payload.homeassistant = req.body.data.action_data;
             needsCategory = true;
