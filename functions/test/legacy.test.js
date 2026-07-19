@@ -484,6 +484,7 @@ describe('live-activity createPayload via FCM', () => {
             countdown_end: 1704067200,
             icon: 'mdi:test',
             color: '#FF0000',
+            progress_bar_direction: 'decreasing',
           },
         },
       },
@@ -499,6 +500,7 @@ describe('live-activity createPayload via FCM', () => {
     expect(cs.countdown_end).toBe(1704067200);
     expect(cs.icon).toBe('mdi:test');
     expect(cs.color).toBe('#FF0000');
+    expect(cs.progress_bar_direction).toBe('decreasing');
   });
 
   test('flat Live Activity fields are translated into content-state', () => {
@@ -520,6 +522,7 @@ describe('live-activity createPayload via FCM', () => {
           background_color: '#101820',
           text_color: '#FFFFFF',
           progress_bar_color: '#FF9800',
+          progress_bar_direction: 'decreasing',
         },
       },
     });
@@ -536,6 +539,7 @@ describe('live-activity createPayload via FCM', () => {
       background_color: '#101820',
       text_color: '#FFFFFF',
       progress_bar_color: '#FF9800',
+      progress_bar_direction: 'decreasing',
     });
   });
 
