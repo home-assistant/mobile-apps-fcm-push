@@ -221,6 +221,13 @@ module.exports = {
             payload.apns.payload.presentation_options = req.body.data.presentation_options;
           }
 
+          // Communication / custom-icon fields
+          for (const key of ['notification_icon', 'icon_url', 'notification_icon_color', 'color']) {
+            if (req.body.data[key] !== undefined) {
+              payload.apns.payload[key] = req.body.data[key];
+            }
+          }
+
           if (typeof req.body.data.tag === 'string') {
             payload.apns.headers['apns-collapse-id'] = req.body.data.tag;
           }

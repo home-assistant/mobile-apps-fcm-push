@@ -1,0 +1,33 @@
+{
+  "input": {
+    "message": "test",
+    "data": {
+      "notification_icon": "mdi:cellphone",
+      "icon_url": "https://example.com/avatar.png",
+      "notification_icon_color": "#FFFFFF",
+      "color": "#03A9F4"
+    },
+    "registration_info": {
+      "app_id": "io.robbie.HomeAssistant.dev",
+      "os_version": "17.0",
+      "app_version": "2024.1"
+    }
+  },
+  "rate_limit": true,
+  "headers": {
+    "apns-push-type": "alert"
+  },
+  "payload": {
+    "aps": {
+      "alert": {
+        "body": "test"
+      },
+      "mutableContent": true,
+      "sound": "default"
+    },
+    "notification_icon": "mdi:cellphone",
+    "icon_url": "https://example.com/avatar.png",
+    "notification_icon_color": "#FFFFFF",
+    "color": "#03A9F4"
+  }
+}
