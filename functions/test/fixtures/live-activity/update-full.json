@@ -19,6 +19,7 @@
       "when": 1704110400,
       "notification_icon": "mdi:timer",
       "notification_icon_color": "#FF5722",
+      "progress_bar_direction": "decreasing",
       "stale_date": 1234571490,
       "relevance_score": 0.8,
       "alert": {
@@ -41,7 +42,8 @@
       "chronometer": true,
       "countdown_end": 1704110400,
       "icon": "mdi:timer",
-      "color": "#FF5722"
+      "color": "#FF5722",
+      "progress_bar_direction": "decreasing"
     },
     "staleDate": 1234571490,
     "relevanceScore": 0.8,
