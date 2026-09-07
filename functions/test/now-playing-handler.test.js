@@ -423,6 +423,96 @@ describe('Now Playing delivery through sendPushNotification', () => {
     /// belongs to the notification quota alone; this ceiling is a machine-readable refusal.
   });
 
+  describe('accounting that fails after APNs has answered', () => {
+    /// Apple's answer is the result of the request. Bookkeeping happens after it and must never
+    /// replace it, because the answer that matters most is the one that retires a dead token.
+    ///
+    /// Lets the two pre-send charges through and fails everything after them, so these exercise
+    /// the accounting that runs once APNs has already answered rather than failing earlier for
+    /// the wrong reason.
+    const breakAccountingAfterSend = () => {
+      const working = mockFirestore.runTransaction.getMockImplementation();
+      mockFirestore.runTransaction
+        .mockImplementationOnce(working)
+        .mockImplementationOnce(working)
+        .mockRejectedValue(new Error('firestore is unavailable'));
+    };
+
+    test('a delivery is still reported when recordSuccess throws', async () => {
+      setNowPlayingProvider(fakeProvider({ status: 200, apnsId: 'APNS-42', reason: null }));
+      req = createMockRequest({ body: nowPlayingBody() });
+      breakAccountingAfterSend();
+      await handlers.handleRequest(req, res, legacy.createPayload);
+
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ messageId: 'APNS-42' }));
+    });
+
+    /// The first row is the one that matters most: a dead token is the only answer that retires a
+    /// registration, and losing it behind a database exception means Home Assistant keeps pushing
+    /// at a token that will never work again. The rest are here because every refusal has to keep
+    /// its own classification, not just that one.
+    test.each([
+      [410, 'Unregistered', 410, 'InvalidToken'],
+      [400, 'DeviceTokenNotForTopic', 400, 'TopicMismatch'],
+      [403, 'InvalidProviderToken', 502, 'ProviderAuth'],
+      [429, 'TooManyRequests', 429, 'ApnsRateLimited'],
+      [503, 'ServiceUnavailable', 502, 'ApnsUnavailable'],
+    ])(
+      'APNs %i %s still answers HTTP %i %s when accounting throws',
+      async (apnsStatus, reason, httpStatus, errorType) => {
+        setNowPlayingProvider(fakeProvider({ status: apnsStatus, apnsId: 'APNS-1', reason }));
+        req = createMockRequest({ body: nowPlayingBody() });
+        breakAccountingAfterSend();
+        await handlers.handleRequest(req, res, legacy.createPayload);
+
+        expect(res.status).toHaveBeenCalledWith(httpStatus);
+        expect(res.send).toHaveBeenCalledWith(
+          expect.objectContaining({ errorType, errorCode: reason }),
+        );
+      },
+    );
+
+    /// Reaching APNs at all is what separates this from the pre-send case.
+    test('a send that never reached Apple still reports that, not the accounting failure', async () => {
+      setNowPlayingProvider(fakeProvider(new Error('ECONNRESET')));
+      req = createMockRequest({ body: nowPlayingBody() });
+      breakAccountingAfterSend();
+      await handlers.handleRequest(req, res, legacy.createPayload);
+
+      expect(res.status).toHaveBeenCalledWith(502);
+      expect(res.send).toHaveBeenCalledWith(
+        expect.objectContaining({ errorType: 'ApnsUnavailable' }),
+      );
+    });
+
+    /// The failure is not swallowed. It goes to its own error stream so it is not read as a
+    /// delivery problem.
+    test('the accounting failure is reported under its own step', async () => {
+      setNowPlayingProvider(fakeProvider({ status: 200, apnsId: 'APNS-1', reason: null }));
+      req = createMockRequest({ body: nowPlayingBody() });
+      breakAccountingAfterSend();
+      await handlers.handleRequest(req, res, legacy.createPayload);
+
+      expect(mockLogging.log).toHaveBeenCalledWith('errors-recordNowPlayingRateLimit');
+    });
+
+    /// Before the send is a different matter: nothing has happened yet, so refusing is safe and
+    /// charging nothing is the honest answer.
+    test('an accounting failure before the send still fails the request', async () => {
+      const provider = fakeProvider();
+      setNowPlayingProvider(provider);
+      req = createMockRequest({ body: nowPlayingBody() });
+      mockFirestore.collection.mockImplementation(() => {
+        throw new Error('firestore is unavailable');
+      });
+      await handlers.handleRequest(req, res, legacy.createPayload);
+
+      expect(provider.sent).toHaveLength(0);
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
+  });
+
   describe('logging', () => {
     test('the destination token is redacted from error reports', () => {
       const body = nowPlayingBody();

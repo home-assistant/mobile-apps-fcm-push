@@ -189,6 +189,36 @@ async function handleRequest(req, res, payloadHandler) {
 }
 
 /**
+ * Charges the Now Playing counters for a request APNs has already answered.
+ *
+ * Bookkeeping after the fact must never become the result. Apple's answer is the outcome of the
+ * request, and the most important one it can give is that a session token is dead: if a 410 is
+ * replaced by a database exception, Home Assistant is told the relay had an internal error rather
+ * than that it should remove the registration, and it keeps pushing at a token that will never
+ * work again.
+ *
+ * A failure here is still worth knowing about, so it is reported under its own step rather than
+ * folded into the delivery's. Returns the registration counters, or `undefined` when they could
+ * not be written.
+ *
+ * @param {(key: string) => Promise<any>} charge
+ */
+async function chargeNowPlayingQuotas(req, quotas, loggable, charge) {
+  try {
+    const [rateLimits] = await Promise.all(quotas.map(charge));
+    return rateLimits;
+  } catch (err) {
+    try {
+      await reportError(err, 'recordNowPlayingRateLimit', req, loggable);
+    } catch {
+      // Reporting the failure failed too. There is nothing further to try, and the delivery
+      // result still has to reach Home Assistant.
+    }
+    return undefined;
+  }
+}
+
+/**
  * Delivers one Now Playing `update` or `end` straight to APNs.
  *
  * The response is deliberately machine-readable. Home Assistant has to be able to tell a dead
@@ -281,8 +311,14 @@ async function handleNowPlayingRequest(req, res, token) {
     response = await provider.send(prepared.request);
   } catch (err) {
     // The request never reached Apple: a connection or TLS failure, or a timeout.
-    await Promise.all(quotas.map((key) => nowPlayingRateLimiter.recordError(key)));
-    await reportError(err, 'sendNowPlaying', req, loggable);
+    await chargeNowPlayingQuotas(req, quotas, loggable, (key) =>
+      nowPlayingRateLimiter.recordError(key),
+    );
+    try {
+      await reportError(err, 'sendNowPlaying', req, loggable);
+    } catch {
+      // The delivery failure is what Home Assistant needs to hear about, not this.
+    }
     return res.status(502).send({
       errorType: 'ApnsUnavailable',
       errorStep: 'sendNowPlaying',
@@ -293,7 +329,9 @@ async function handleNowPlayingRequest(req, res, token) {
   const outcome = classifyApnsResponse(response);
 
   if (!outcome.ok) {
-    await Promise.all(quotas.map((key) => nowPlayingRateLimiter.recordError(key)));
+    await chargeNowPlayingQuotas(req, quotas, loggable, (key) =>
+      nowPlayingRateLimiter.recordError(key),
+    );
     if (debug) {
       log.info(
         log.entry(metadata, {
@@ -316,9 +354,10 @@ async function handleNowPlayingRequest(req, res, token) {
   }
 
   // The registration's counters are what the response reports, and the destination's are advanced
-  // alongside them so both stay answered.
-  const [rateLimits] = await Promise.all(
-    quotas.map((key) => nowPlayingRateLimiter.recordSuccess(key)),
+  // alongside them so both stay answered. The push has already been delivered, so a failure to
+  // record that leaves `rateLimits` absent from the response rather than losing the delivery.
+  const rateLimits = await chargeNowPlayingQuotas(req, quotas, loggable, (key) =>
+    nowPlayingRateLimiter.recordSuccess(key),
   );
 
   if (debug) {
