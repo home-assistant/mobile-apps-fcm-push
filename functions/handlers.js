@@ -299,7 +299,9 @@ async function handleNowPlayingRequest(req, res, token) {
   try {
     await Promise.all(quotas.map((key) => nowPlayingRateLimiter.recordAttempt(key)));
   } catch (err) {
-    return handleError(req, res, loggable, 'getRateLimitDoc', err);
+    // Its own step: `getRateLimitDoc` is the read above, and a failure to write a counter is a
+    // different fault to a failure to read one.
+    return handleError(req, res, loggable, 'recordNowPlayingAttempt', err);
   }
 
   if (debug) {

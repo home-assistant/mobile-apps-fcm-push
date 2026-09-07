@@ -53,7 +53,7 @@ function isNowPlayingRequest(body) {
  *             request?: { token: string, topic: string, pushType: string, body: Buffer } }}
  */
 function prepareNowPlaying(body) {
-  const token = body.now_playing_token;
+  const supplied = body.now_playing_token;
 
   if (body.live_activity_token) {
     // One request cannot mean both, and guessing would send the wrong thing to the wrong token.
@@ -64,9 +64,17 @@ function prepareNowPlaying(body) {
     );
   }
 
-  if (typeof token !== 'string' || !/^[0-9a-fA-F]+$/.test(token) || token.length % 2 !== 0) {
+  if (
+    typeof supplied !== 'string' ||
+    !/^[0-9a-fA-F]+$/.test(supplied) ||
+    supplied.length % 2 !== 0
+  ) {
     return invalid(400, 'InvalidNowPlayingToken', 'now_playing_token must be a hex string.');
   }
+  // Hex is case-insensitive and a caller may send either, so it is settled here rather than at
+  // each use. Everything downstream then agrees on one spelling: the device path APNs is given,
+  // the quota the send is charged to, and the fingerprint it is logged under.
+  const token = supplied.toLowerCase();
 
   const request = body.now_playing;
   if (!isPlainObject(request)) {
