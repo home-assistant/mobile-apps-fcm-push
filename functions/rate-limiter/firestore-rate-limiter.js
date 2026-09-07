@@ -31,11 +31,14 @@ class FirestoreRateLimiter {
    *
    * @param {number} [maxNotificationsPerDay] - Maximum notifications allowed per day
    * @param {boolean} [debug=false] - Whether to enable debug logging
+   * @param {string} [keyPrefix=''] - Counter namespace. Empty for the notification quota, which
+   *   keeps its existing document paths.
    */
-  constructor(maxNotificationsPerDay, debug = false) {
+  constructor(maxNotificationsPerDay, debug = false, keyPrefix = '') {
     this.db = db;
     this.maxNotificationsPerDay = maxNotificationsPerDay;
     this.debug = debug;
+    this.keyPrefix = keyPrefix;
   }
 
   /**
@@ -47,7 +50,11 @@ class FirestoreRateLimiter {
    */
   _getDocRef(token) {
     const today = getToday();
-    return this.db.collection('rateLimits').doc(today).collection('tokens').doc(token);
+    return this.db
+      .collection('rateLimits')
+      .doc(today)
+      .collection('tokens')
+      .doc(`${this.keyPrefix}${token}`);
   }
 
   /**
