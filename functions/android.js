@@ -36,7 +36,7 @@ module.exports = {
 
       // Allow setting of ttl
       // https://firebase.google.com/docs/reference/admin/node/admin.messaging.AndroidConfig.html#optional-ttl
-      if (req.body.data.ttl) {
+      if (Object.hasOwn(req.body.data, 'ttl')) {
         payload.android.ttl = req.body.data.ttl;
       }
 
