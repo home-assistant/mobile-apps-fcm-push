@@ -157,10 +157,14 @@ function createPayload(req) {
 }
 
 function clampRelevanceScore(value) {
-  if (value === undefined || value === null || value === '') {
+  let score;
+  if (typeof value === 'number') {
+    score = value;
+  } else if (typeof value === 'string' && value.trim() !== '') {
+    score = Number(value);
+  } else {
     return undefined;
   }
-  const score = Number(value);
   if (!Number.isFinite(score)) {
     return undefined;
   }
