@@ -465,6 +465,23 @@ describe('live-activity createPayload via FCM', () => {
     expect(payload.apns.payload.aps['relevance-score']).toBe(0.5);
   });
 
+  test.each([
+    [1.7, 1],
+    [-0.3, 0],
+    ['0.8', 0.8],
+    [0, 0],
+  ])('relevance_score %p is sent as %p', (input, expected) => {
+    const req = createLiveActivityRequest({ data: { event: 'update', relevance_score: input } });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.payload.aps['relevance-score']).toBe(expected);
+  });
+
+  test.each(['high', '', null, NaN])('relevance_score %p is omitted', (input) => {
+    const req = createLiveActivityRequest({ data: { event: 'update', relevance_score: input } });
+    const { payload } = legacy.createPayload(req);
+    expect(payload.apns.payload.aps['relevance-score']).toBeUndefined();
+  });
+
   test('content-state maps fields correctly', () => {
     const req = createMockRequest({
       body: {
