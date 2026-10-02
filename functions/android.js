@@ -156,6 +156,13 @@ module.exports = {
         updateRateLimits = false;
       }
     }
+    // A location request is only answered right away when it arrives as a high priority message. A
+    // normal priority message waits for the next Doze maintenance window, often several minutes, and
+    // only a high priority one lets the app start the foreground service that gets a new location.
+    if (req.body.message === 'request_location_update' && !payload.android.priority) {
+      payload.android.priority = 'high';
+    }
+
     if (req.body.title) {
       payload.data.title = req.body.title;
     }
