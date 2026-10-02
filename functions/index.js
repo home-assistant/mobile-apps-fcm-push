@@ -8,6 +8,7 @@ initializeApp();
 
 const android = require('./android');
 const legacy = require('./legacy');
+const widgetPush = require('./widget-push');
 
 const region = (functions.config().app && functions.config().app.region) || 'us-central1';
 const regionalFunctions = functions.region(region).runWith({ timeoutSeconds: 10 });
@@ -22,9 +23,17 @@ exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) =>
   handleRequest(req, res, android.createPayload),
 );
 
-exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) =>
-  handleRequest(req, res, legacy.createPayload),
-);
+exports.sendPushNotification = functions
+  .region(region)
+  .runWith({ timeoutSeconds: 10, secrets: widgetPush.SECRETS })
+  .https.onRequest(async (req, res) => {
+    // Widget push_subscription payloads target a WidgetKit push token, which FCM
+    // can't route — send those straight to APNs instead of through messaging.send.
+    if (req.body && req.body.push_subscription) {
+      return widgetPush.sendWidgetPush(req, res);
+    }
+    return handleRequest(req, res, legacy.createPayload);
+  });
 
 exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) =>
   handleCheckRateLimits(req, res),
