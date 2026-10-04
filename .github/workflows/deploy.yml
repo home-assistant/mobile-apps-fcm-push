@@ -66,7 +66,7 @@ jobs:
           persist-credentials: false
 
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@844c33e381350ae5c600052ba95188f40572d8e0 # v15.30.2
+        uses: w9jds/firebase-action@48658473f4157f0dddc075d3f36ae68b7aa7cad8 # v15.31.0
         with:
           args: deploy --only hosting
         env:
