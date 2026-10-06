@@ -66,14 +66,23 @@ class ValkeyRateLimiter {
    * @param {boolean} [debug=false] - Whether to enable debug logging
    * @param {string} [valkeyHost] - Valkey Cluster host
    * @param {number} [valkeyPort] - Valkey Cluster port
+   * @param {string} [keyPrefix=''] - Counter namespace. Empty for the notification quota, which
+   *   keeps its existing keys.
    */
-  constructor(maxNotificationsPerDay, debug = false, valkeyHost = 'localhost', valkeyPort = 6379) {
+  constructor(
+    maxNotificationsPerDay,
+    debug = false,
+    valkeyHost = 'localhost',
+    valkeyPort = 6379,
+    keyPrefix = '',
+  ) {
     this.valkeyHost = valkeyHost;
     this.valkeyPort = valkeyPort;
     this.maxNotificationsPerDay = maxNotificationsPerDay;
     this.debug = debug;
     this.connected = false;
     this.client = null;
+    this.keyPrefix = keyPrefix;
   }
 
   async connect() {
@@ -97,7 +106,7 @@ class ValkeyRateLimiter {
    */
   _getValkeyKey(token) {
     const today = getToday();
-    return `rate_limit:${token}:${today}`;
+    return `rate_limit:${this.keyPrefix}${token}:${today}`;
   }
 
   /**
