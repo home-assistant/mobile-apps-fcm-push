@@ -1,0 +1,42 @@
+{
+    $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+    configMigration: true,
+    extends: ['config:best-practices'],
+    enabledManagers: ['devcontainer', 'dockerfile', 'github-actions', 'npm'],
+    minimumReleaseAge: '3 days',
+    schedule: ['before 8am on monday'],
+    semanticCommits: 'disabled',
+    labels: ['dependencies'],
+    packageRules: [
+        {
+            description: 'Label npm updates',
+            matchManagers: ['npm', 'dockerfile'],
+            addLabels: ['javascript'],
+        },
+        {
+            description: 'Label GitHub Actions updates',
+            matchManagers: ['github-actions'],
+            addLabels: ['github_actions'],
+        },
+        {
+            description: 'All non-major npm updates of the functions in one PR',
+            matchManagers: ['npm'],
+            matchUpdateTypes: ['minor', 'patch'],
+            groupName: 'npm dependencies (non-major)',
+            groupSlug: 'npm-non-major',
+        },
+        {
+            description: 'Docker Hub returns no release timestamps for the node image, so the minimum release age would keep it pending forever',
+            matchDatasources: ['docker'],
+            matchPackageNames: ['node'],
+            minimumReleaseAge: null,
+        },
+        {
+            description: 'Our own actions that follow a branch (like home-assistant/actions@master) float on purpose. Pinning them would open a digest PR in every repository for each change to them. Our own actions on a version tag are pinned like any other.',
+            matchManagers: ['github-actions'],
+            matchPackageNames: ['home-assistant/**'],
+            matchCurrentValue: '/^(dev|main|master)$/',
+            pinDigests: false,
+        },
+    ],
+}
