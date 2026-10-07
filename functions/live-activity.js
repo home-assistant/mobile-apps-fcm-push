@@ -77,8 +77,9 @@ function createPayload(req) {
     aps[LiveActivityApsKey.STALE_DATE] = data.stale_date;
   }
 
-  if (data.relevance_score !== undefined) {
-    aps[LiveActivityApsKey.RELEVANCE_SCORE] = data.relevance_score;
+  const relevanceScore = clampRelevanceScore(data.relevance_score);
+  if (relevanceScore !== undefined) {
+    aps[LiveActivityApsKey.RELEVANCE_SCORE] = relevanceScore;
   }
 
   if (data.alert) {
@@ -155,6 +156,21 @@ function createPayload(req) {
   };
 }
 
+function clampRelevanceScore(value) {
+  let score;
+  if (typeof value === 'number') {
+    score = value;
+  } else if (typeof value === 'string' && value.trim() !== '') {
+    score = Number(value);
+  } else {
+    return undefined;
+  }
+  if (!Number.isFinite(score)) {
+    return undefined;
+  }
+  return Math.min(Math.max(score, 0), 1);
+}
+
 function buildAlert(body) {
   return {
     title: body.title ?? '',
@@ -186,6 +202,8 @@ function buildContentState(body, data) {
   if (data.background_color !== undefined) state.background_color = data.background_color;
   if (data.text_color !== undefined) state.text_color = data.text_color;
   if (data.progress_bar_color !== undefined) state.progress_bar_color = data.progress_bar_color;
+  if (data.progress_bar_direction !== undefined)
+    state.progress_bar_direction = data.progress_bar_direction;
   if (data.url !== undefined) state.url = data.url;
   if (data.when !== undefined) {
     state.countdown_end = data.when_relative
@@ -207,6 +225,8 @@ function buildContentState(body, data) {
     if (cs.background_color !== undefined) state.background_color = cs.background_color;
     if (cs.text_color !== undefined) state.text_color = cs.text_color;
     if (cs.progress_bar_color !== undefined) state.progress_bar_color = cs.progress_bar_color;
+    if (cs.progress_bar_direction !== undefined)
+      state.progress_bar_direction = cs.progress_bar_direction;
     if (cs.url !== undefined) state.url = cs.url;
   }
 

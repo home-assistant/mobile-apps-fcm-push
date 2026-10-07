@@ -170,6 +170,11 @@ module.exports = {
             payload.apns.payload.volume = req.body.data.volume;
           }
 
+          if (req.body.data.mode !== undefined) {
+            // Kiosk command value for kiosk_set_screensaver_mode
+            payload.apns.payload.mode = req.body.data.mode;
+          }
+
           if (req.body.data.action_data) {
             payload.apns.payload.homeassistant = req.body.data.action_data;
             needsCategory = true;
@@ -214,6 +219,13 @@ module.exports = {
 
           if (req.body.data.presentation_options) {
             payload.apns.payload.presentation_options = req.body.data.presentation_options;
+          }
+
+          // Communication / custom-icon fields
+          for (const key of ['notification_icon', 'icon_url', 'notification_icon_color', 'color']) {
+            if (req.body.data[key] !== undefined) {
+              payload.apns.payload[key] = req.body.data[key];
+            }
           }
 
           if (typeof req.body.data.tag === 'string') {
