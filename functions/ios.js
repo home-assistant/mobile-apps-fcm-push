@@ -11,7 +11,7 @@ module.exports = {
 
     if (process.env.DEBUG === 'true' && req.body.data?.live_update === true) {
       console.info(
-        '[legacy-live-activity]',
+        '[ios-live-activity]',
         JSON.stringify({
           mode: 'fallback_notification',
           reason: 'missing_live_activity_token',
@@ -41,7 +41,7 @@ module.exports = {
         },
       },
       fcm_options: {
-        analytics_label: 'legacyNotification',
+        analytics_label: 'ios_notification',
       },
     };
 

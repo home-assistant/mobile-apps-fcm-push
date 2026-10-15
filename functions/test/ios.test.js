@@ -43,14 +43,14 @@ jest.mock('firebase-functions/v1', () => ({
 }));
 
 const { handleRequest } = require('../index.js');
-const legacy = require('../legacy.js');
+const ios = require('../ios.js');
 
 const FCM_TOKEN = 'test:fcm-token-123';
 
-// --- Fixture-driven tests for existing legacy payload builder ---
+// --- Fixture-driven tests for iOS payload builder ---
 
-describe('legacy.js', () => {
-  const fixturesDir = './test/fixtures/legacy/';
+describe('ios.js', () => {
+  const fixturesDir = './test/fixtures/ios/';
 
   test('builds a standard notification payload', () => {
     const req = createMockRequest({
@@ -65,11 +65,11 @@ describe('legacy.js', () => {
         },
       },
     });
-    const result = legacy.createPayload(req);
+    const result = ios.createPayload(req);
     expect(result.payload.notification).toBeDefined();
     expect(result.payload.notification.body).toBe('Hello');
     expect(result.payload.apns.liveActivityToken).toBeUndefined();
-    expect(result.payload.fcm_options.analytics_label).toBe('legacyNotification');
+    expect(result.payload.fcm_options.analytics_label).toBe('ios_notification');
   });
 
   // Get fixture files synchronously for test definition
@@ -96,7 +96,7 @@ describe('legacy.js', () => {
         updateRateLimits: json['rate_limit'],
       };
 
-      const result = legacy.createPayload({ body: input });
+      const result = ios.createPayload({ body: input });
 
       // Remove things that aren't worth copy/pasting between test cases
       delete result['payload']['android'];
