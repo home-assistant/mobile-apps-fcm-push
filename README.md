@@ -17,12 +17,21 @@ Startup function for local testing:
 # Only Once
 npm install -g firebase-tools
 
-firebase functions:config:set debug.local=true
-firebase functions:config:get > .runtimeconfig.json
+# Optional: enable debug logging while running locally
+echo "DEBUG_LOCAL=true" > .env.local
 
 # Whenever you want to start
 npm run serve
 ```
+
+Configuration is read from [`.env` files](https://firebase.google.com/docs/functions/config-env#env-variables)
+in the `functions` directory (`.env`, `.env.<project id>` and, for local runs only, `.env.local`).
+They are git-ignored, so each developer keeps their own.
+
+| Variable      | Default       | Description                                       |
+| ------------- | ------------- | ------------------------------------------------- |
+| `APP_REGION`  | `us-central1` | Region the Cloud Functions are deployed to        |
+| `DEBUG_LOCAL` | `false`       | Set to `true` to enable debug logging             |
 
 # Deploy your own
 
@@ -33,11 +42,11 @@ Change the target project if needed:
 sed -i s/home-assistant-mobile-apps/myproject/g ../.firebaserc
 ```
 
-You can set the `app.region` setting if you want to deploy your functions in a another location than `us-central1`, e.g. `europe-west1`:
+You can set `APP_REGION` if you want to deploy your functions in another location than `us-central1`, e.g. `europe-west1`:
 
 ```
 # Only once
-firebase functions:config:set app.region="us-central1"
+echo "APP_REGION=europe-west1" > .env
 ```
 
 Then deploy the Cloud Functions:
