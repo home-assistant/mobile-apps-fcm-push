@@ -12,9 +12,14 @@ jest.mock('@valkey/valkey-glide', () => ({
 
 const ValkeyRateLimiter = require('../../rate-limiter/valkey-rate-limiter');
 
-// Helper to convert object to array format that hgetall returns
+// Atomic batch HGETALL responses use GlideRecord key/value pairs.
 function objectToHgetallArray(obj) {
-  return Object.entries(obj).map(([key, value]) => ({ [key]: value }));
+  return Object.entries(obj).map(([key, value]) => ({ key, value }));
+}
+
+// Standalone hgetall converts the keys to HashDataType field/value pairs.
+function objectToHashData(obj) {
+  return Object.entries(obj).map(([field, value]) => ({ field, value }));
 }
 
 describe('ValkeyRateLimiter', () => {
@@ -165,7 +170,7 @@ describe('ValkeyRateLimiter', () => {
       const lowLimitRateLimiter = new ValkeyRateLimiter(5); // Low limit for testing
 
       mockClient.hgetall.mockResolvedValue(
-        objectToHgetallArray({
+        objectToHashData({
           attemptsCount: '5',
           deliveredCount: '5',
           errorCount: '0',
@@ -212,7 +217,7 @@ describe('ValkeyRateLimiter', () => {
   describe('Data parsing', () => {
     test('should handle missing fields in Valkey data', async () => {
       mockClient.hgetall.mockResolvedValue(
-        objectToHgetallArray({
+        objectToHashData({
           attemptsCount: '5',
           // missing other fields
         }),
@@ -228,7 +233,7 @@ describe('ValkeyRateLimiter', () => {
 
     test('should handle non-numeric values gracefully', async () => {
       mockClient.hgetall.mockResolvedValue(
-        objectToHgetallArray({
+        objectToHashData({
           attemptsCount: 'invalid',
           deliveredCount: 'abc',
           errorCount: null,
@@ -242,11 +247,47 @@ describe('ValkeyRateLimiter', () => {
       expect(status.rateLimits.successful).toBe(0);
       expect(status.rateLimits.errors).toBe(0);
       expect(status.rateLimits.total).toBe(0);
+      expect(status.rateLimits.remaining).toBe(maxNotificationsPerDay);
+      expect(status.isRateLimited).toBe(false);
+      expect(status.shouldSendRateLimitNotification).toBe(false);
+    });
+
+    test.each([
+      ['12oops', 0],
+      ['1.5', 0],
+      ['-1', 0],
+      ['1e2', 0],
+      [' 12 ', 0],
+      ['12\n', 0],
+      ['Infinity', 0],
+      ['9007199254740992', 0],
+      ['0', 0],
+      ['12', 12],
+    ])('should parse every counter value %j as %i', async (value, expected) => {
+      mockClient.hgetall.mockResolvedValue(
+        objectToHashData({
+          attemptsCount: value,
+          deliveredCount: value,
+          errorCount: value,
+          totalCount: value,
+        }),
+      );
+
+      const status = await rateLimiter.checkRateLimit(testToken);
+
+      expect(status.rateLimits).toMatchObject({
+        attempts: expected,
+        successful: expected,
+        errors: expected,
+        total: expected,
+        remaining: maxNotificationsPerDay - expected,
+      });
+      expect(status.isRateLimited).toBe(false);
     });
 
     test('should handle all fields present in Valkey data', async () => {
       mockClient.hgetall.mockResolvedValue(
-        objectToHgetallArray({
+        objectToHashData({
           attemptsCount: '10',
           deliveredCount: '8',
           errorCount: '2',
@@ -396,7 +437,7 @@ describe('ValkeyRateLimiter', () => {
   describe('Rate limit edge cases', () => {
     test('should handle negative remaining count', async () => {
       mockClient.hgetall.mockResolvedValue(
-        objectToHgetallArray({
+        objectToHashData({
           attemptsCount: '10',
           deliveredCount: '200', // More than max allowed
           errorCount: '0',
@@ -412,7 +453,7 @@ describe('ValkeyRateLimiter', () => {
 
     test('should calculate positive remaining count correctly', async () => {
       mockClient.hgetall.mockResolvedValue(
-        objectToHgetallArray({
+        objectToHashData({
           attemptsCount: '50',
           deliveredCount: '50',
           errorCount: '0',
@@ -445,7 +486,7 @@ describe('ValkeyRateLimiter', () => {
       mockClient.hgetall.mockImplementation((key) => {
         if (key.includes(token1)) {
           return Promise.resolve(
-            objectToHgetallArray({
+            objectToHashData({
               attemptsCount: '5',
               deliveredCount: '3',
               errorCount: '2',
@@ -454,7 +495,7 @@ describe('ValkeyRateLimiter', () => {
           );
         } else if (key.includes(token2)) {
           return Promise.resolve(
-            objectToHgetallArray({
+            objectToHashData({
               attemptsCount: '10',
               deliveredCount: '8',
               errorCount: '2',
