@@ -196,4 +196,50 @@ describe('FCM Error Handling', () => {
     expect(mockLogging.log).toHaveBeenCalledWith('errors-sendNotification');
     expect(mockLogInstance.write).toHaveBeenCalled();
   });
+
+  test('should not crash when error.code is a non-string (numeric HTTP status)', async () => {
+    // Repro: a network failure before reaching FCM produces an Error with a numeric
+    // `code` (e.g. 503). Without the type guard in handleError, calling
+    // .startsWith('messaging/') on the number throws a TypeError that escapes
+    // handleError itself and the response is never sent.
+    const error = new Error('Service unavailable');
+    error.code = 503;
+    mockMessaging.send.mockRejectedValue(error);
+
+    const mockLogInstance = {
+      write: jest.fn((entry, callback) => callback()),
+      entry: jest.fn(() => ({})),
+    };
+    mockLogging.log.mockReturnValue(mockLogInstance);
+
+    await indexModule.handleRequest(req, res, payloadHandler);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.send).toHaveBeenCalledWith({
+      errorType: 'InternalError',
+      errorStep: 'sendNotification',
+      message: 'Service unavailable',
+    });
+    expect(mockLogInstance.write).toHaveBeenCalled();
+  });
+
+  test('should not crash when error.code is undefined', async () => {
+    const error = new Error('Generic failure with no code');
+    mockMessaging.send.mockRejectedValue(error);
+
+    const mockLogInstance = {
+      write: jest.fn((entry, callback) => callback()),
+      entry: jest.fn(() => ({})),
+    };
+    mockLogging.log.mockReturnValue(mockLogInstance);
+
+    await indexModule.handleRequest(req, res, payloadHandler);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.send).toHaveBeenCalledWith({
+      errorType: 'InternalError',
+      errorStep: 'sendNotification',
+      message: 'Generic failure with no code',
+    });
+  });
 });
