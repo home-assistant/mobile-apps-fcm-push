@@ -114,11 +114,25 @@ module.exports = {
         'progress_indeterminate',
         'live_update',
         'critical_text',
+        'progress_segments',
+        'progress_points',
+        'progress_start_icon',
+        'progress_end_icon',
+        'progress_tracker_icon',
+        'progress_start_color',
+        'progress_end_color',
+        'progress_tracker_color',
       ];
 
       androidNotificationKeys.forEach((key) => {
         if (Object.hasOwn(req.body.data, key)) {
-          payload.data[key] = String(req.body.data[key]);
+          // If the value is an object, stringify it. Convert everything else to a string.
+          // This is because FCM data payloads must be strings.
+          if (typeof req.body.data[key] === 'object') {
+            payload.data[key] = JSON.stringify(req.body.data[key]);
+          } else {
+            payload.data[key] = String(req.body.data[key]);
+          }
         }
       });
     }
