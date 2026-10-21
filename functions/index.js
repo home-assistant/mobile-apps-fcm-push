@@ -21,7 +21,7 @@ const debugLocal = defineBoolean('DEBUG_LOCAL', {
 initializeApp();
 
 const android = require('./android');
-const legacy = require('./legacy');
+const ios = require('./ios');
 
 // v1 `functions.region()` only accepts plain strings, so the param is resolved
 // here at load time rather than passed through as a param expression.
@@ -39,7 +39,7 @@ exports.androidV1 = regionalFunctions.https.onRequest(async (req, res) =>
 );
 
 exports.sendPushNotification = regionalFunctions.https.onRequest(async (req, res) =>
-  handleRequest(req, res, legacy.createPayload),
+  handleRequest(req, res, ios.createPayload),
 );
 
 exports.checkRateLimits = regionalFunctions.https.onRequest(async (req, res) =>
