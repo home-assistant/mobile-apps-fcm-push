@@ -29,7 +29,7 @@ module.exports = {
           }
           if (action.authenticationRequired) {
             payload.data[`action_${actionIndex}_authenticationRequired`] =
-              action.authenticationRequired;
+              String(action.authenticationRequired);
           }
         });
       }
