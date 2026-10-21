@@ -28,8 +28,9 @@ module.exports = {
             payload.data[`action_${actionIndex}_behavior`] = action.behavior;
           }
           if (action.authenticationRequired) {
-            payload.data[`action_${actionIndex}_authenticationRequired`] =
-              String(action.authenticationRequired);
+            payload.data[`action_${actionIndex}_authenticationRequired`] = String(
+              action.authenticationRequired,
+            );
           }
         });
       }
