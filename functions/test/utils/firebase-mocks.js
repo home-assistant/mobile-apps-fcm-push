@@ -4,12 +4,7 @@
  * Shared Firebase mock utilities for tests
  */
 
-/**
- * @param {object} [options]
- * @param {boolean} [options.mockFirebaseFunctions=true] Set to false to keep the real
- *   `firebase-functions` SDK (e.g. to test that `index.js` loads against it).
- */
-const setupFirebaseMocks = ({ mockFirebaseFunctions = true } = {}) => {
+const setupFirebaseMocks = () => {
   const mockMessaging = {
     send: jest.fn(),
   };
@@ -17,18 +12,6 @@ const setupFirebaseMocks = ({ mockFirebaseFunctions = true } = {}) => {
   const mockFirestore = {
     collection: jest.fn(),
     runTransaction: jest.fn(),
-  };
-
-  const mockFunctions = {
-    logger: {
-      info: jest.fn(),
-      warn: jest.fn(),
-    },
-    region: jest.fn().mockReturnThis(),
-    runWith: jest.fn().mockReturnThis(),
-    https: {
-      onRequest: jest.fn(),
-    },
   };
 
   const mockLogging = {
@@ -43,9 +26,6 @@ const setupFirebaseMocks = ({ mockFirebaseFunctions = true } = {}) => {
   };
 
   // Set up Jest mocks
-  if (mockFirebaseFunctions) {
-    jest.mock('firebase-functions/v1', () => mockFunctions);
-  }
   jest.mock('@google-cloud/logging', () => ({
     Logging: jest.fn(() => mockLogging),
   }));
@@ -63,7 +43,6 @@ const setupFirebaseMocks = ({ mockFirebaseFunctions = true } = {}) => {
   return {
     mockMessaging,
     mockFirestore,
-    mockFunctions,
     mockLogging,
     mockTimestamp,
   };
