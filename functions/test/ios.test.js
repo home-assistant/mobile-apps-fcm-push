@@ -35,14 +35,8 @@ jest.mock('firebase-admin/firestore', () => ({
 jest.mock('firebase-admin/messaging', () => ({
   getMessaging: jest.fn(() => mockMessaging),
 }));
-jest.mock('firebase-functions/v1', () => ({
-  config: jest.fn(() => ({})),
-  region: jest.fn().mockReturnThis(),
-  runWith: jest.fn().mockReturnThis(),
-  https: { onRequest: jest.fn() },
-}));
 
-const { handleRequest } = require('../index.js');
+const { handleRequest } = require('../handlers.js');
 const ios = require('../ios.js');
 
 const FCM_TOKEN = 'test:fcm-token-123';
