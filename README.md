@@ -30,7 +30,7 @@ You can deploy the push server anywhere you want: it is a plain Node app you can
 
 Before deploying, you'll need a Firebase project for FCM with the mobile apps registered to it. Then, [create a service account](https://docs.cloud.google.com/iam/docs/service-accounts-create) with the "Firebase Cloud Messaging API Admin" and "Logs Writer" roles, create a new key for it and download it as a JSON file.
 
-Example Docker Compose file for a small setup on `push.example.com `, with Caddy as a reverse proxy:
+Example Docker Compose file for a small setup on `push.example.com`, with Caddy as a reverse proxy:
 
 ```yaml
 services:
