@@ -43,7 +43,7 @@ jest.mock('firebase-functions/v1', () => ({
 }));
 
 const { handleRequest } = require('../index.js');
-const legacy = require('../legacy.js');
+const ios = require('../ios.js');
 
 // --- Live Activity helpers ---
 
@@ -118,7 +118,7 @@ describe('live-activity createPayload via FCM', () => {
       fs.readFileSync(path.join(liveActivityFixturesDir, filename), 'utf8'),
     );
     const req = createMockRequest({ body: fixture.input });
-    const result = legacy.createPayload(req);
+    const result = ios.createPayload(req);
 
     expect(result.updateRateLimits).toBe(fixture.expected.updateRateLimits);
     expect(result.payload.apns.liveActivityToken).toBe(fixture.expected.liveActivityToken);
@@ -164,7 +164,7 @@ describe('live-activity createPayload via FCM', () => {
 
   test('defaults event to update when not specified', () => {
     const req = createLiveActivityRequest({ data: {} });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps.event).toBe('update');
   });
 
@@ -178,7 +178,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'start', tag: 'laundry-001' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['attributes-type']).toBe('HALiveActivityAttributes');
     expect(payload.apns.payload.aps.attributes).toEqual({
       tag: 'laundry-001',
@@ -200,7 +200,7 @@ describe('live-activity createPayload via FCM', () => {
           data: { event: 'start', tag: 'laundry-001' },
         },
       });
-      const { payload } = legacy.createPayload(req);
+      const { payload } = ios.createPayload(req);
       const aps = payload.apns.payload.aps;
       expect(aps.attributes.started_at).toBe(1704067200);
       expect(aps.attributes.started_at).toBe(aps.timestamp);
@@ -212,7 +212,7 @@ describe('live-activity createPayload via FCM', () => {
   test('update and end events do not carry started_at (it is a start-only attribute)', () => {
     for (const event of ['update', 'end']) {
       const req = createLiveActivityRequest({ data: { event, tag: 'laundry-001' } });
-      const { payload } = legacy.createPayload(req);
+      const { payload } = ios.createPayload(req);
       expect(payload.apns.payload.aps.attributes).toBeUndefined();
     }
   });
@@ -227,7 +227,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'start', tag: 'laundry-001' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps.attributes).toEqual({
       tag: 'laundry-001',
       title: 'Laundry',
@@ -246,7 +246,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'start', tag: 'laundry-001' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps.attributes.webhook_id).toBeUndefined();
   });
 
@@ -260,7 +260,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'start', tag: 'laundry-tag' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.headers['apns-collapse-id']).toBe('laundry-tag');
   });
 
@@ -274,7 +274,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'start' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     // The header must be omitted entirely, not set to an empty/undefined value:
     // APNs rejects an empty apns-collapse-id.
     expect('apns-collapse-id' in payload.apns.headers).toBe(false);
@@ -284,13 +284,13 @@ describe('live-activity createPayload via FCM', () => {
     const req = createLiveActivityRequest({
       data: { event: 'update', tag: 'laundry-001' },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.headers['apns-collapse-id']).toBeUndefined();
   });
 
   test('end event does not set apns-collapse-id so the dismissal is delivered', () => {
     const req = createLiveActivityRequest({ data: { event: 'end', tag: 'laundry-001' } });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.headers['apns-collapse-id']).toBeUndefined();
   });
 
@@ -304,7 +304,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'update', url: '/lovelace/laundry' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['content-state'].url).toBe('/lovelace/laundry');
   });
 
@@ -318,7 +318,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'update', background_color: '#101820' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['content-state'].background_color).toBe('#101820');
   });
 
@@ -333,7 +333,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'start', tag: 'laundry-001' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps.alert).toEqual({ title: 'Laundry', body: 'Rinsing' });
     expect(payload.apns.payload.aps['interruption-level']).toBeUndefined();
     expect(payload.apns.payload.aps.sound).toBeUndefined();
@@ -342,7 +342,7 @@ describe('live-activity createPayload via FCM', () => {
   test('attributes-type is only set for start events, not update or end', () => {
     for (const event of ['update', 'end']) {
       const req = createLiveActivityRequest({ data: { event, activity_id: 'test-001' } });
-      const { payload } = legacy.createPayload(req);
+      const { payload } = ios.createPayload(req);
       expect(payload.apns.payload.aps['attributes-type']).toBeUndefined();
       expect(payload.apns.payload.aps.attributes).toBeUndefined();
     }
@@ -357,7 +357,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'end', dismissal_date: 9999999 },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['dismissal-date']).toBe(9999999);
   });
 
@@ -373,7 +373,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'end', tag: 'washer_cycle' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     const aps = payload.apns.payload.aps;
     expect(aps['dismissal-date']).toBe(1704067200);
     expect(aps['content-state']).toEqual({ message: '' });
@@ -393,7 +393,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'update', stale_date: 1111, relevance_score: 0.5 },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['stale-date']).toBe(1111);
     expect(payload.apns.payload.aps['relevance-score']).toBe(0.5);
   });
@@ -405,7 +405,7 @@ describe('live-activity createPayload via FCM', () => {
     [0, 0],
   ])('relevance_score %p is sent as %p', (input, expected) => {
     const req = createLiveActivityRequest({ data: { event: 'update', relevance_score: input } });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['relevance-score']).toBe(expected);
   });
 
@@ -413,7 +413,7 @@ describe('live-activity createPayload via FCM', () => {
     'relevance_score %p is omitted',
     (input) => {
       const req = createLiveActivityRequest({ data: { event: 'update', relevance_score: input } });
-      const { payload } = legacy.createPayload(req);
+      const { payload } = ios.createPayload(req);
       expect(payload.apns.payload.aps['relevance-score']).toBeUndefined();
     },
   );
@@ -442,7 +442,7 @@ describe('live-activity createPayload via FCM', () => {
         },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     const cs = payload.apns.payload.aps['content-state'];
     expect(cs.title).toBe('Timer');
     expect(cs.message).toBe('Override');
@@ -479,7 +479,7 @@ describe('live-activity createPayload via FCM', () => {
         },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['content-state']).toMatchObject({
       title: 'Washing Machine',
       message: 'Rinsing',
@@ -516,7 +516,7 @@ describe('live-activity createPayload via FCM', () => {
         },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['content-state']).toMatchObject({
       title: 'Override title',
       message: 'Override',
@@ -536,7 +536,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'update', when: 300, when_relative: true },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['content-state'].countdown_end).toBe(1704067500);
     dateNowSpy.mockRestore();
   });
@@ -551,7 +551,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'update' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['content-state'].message).toBe('Hello from HA');
   });
 
@@ -566,7 +566,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'update', tag: 'laundry-001' },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps.alert).toEqual({ title: 'Laundry', body: 'Rinsing' });
     expect(payload.apns.payload.aps['interruption-level']).toBeUndefined();
     expect(payload.apns.payload.aps.sound).toBeUndefined();
@@ -583,7 +583,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'update', tag: 'laundry-001', silent: true },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps.alert).toEqual({ title: '' });
     expect(payload.apns.payload.aps['interruption-level']).toBeUndefined();
     expect(payload.apns.payload.aps.sound).toBeUndefined();
@@ -598,7 +598,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'update', progress: 1 },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['content-state']).toMatchObject({
       message: '',
       progress: 1,
@@ -607,13 +607,13 @@ describe('live-activity createPayload via FCM', () => {
 
   test('liveActivityToken is set from req.body.live_activity_token', () => {
     const req = createLiveActivityRequest();
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.liveActivityToken).toBe(LIVE_ACTIVITY_TOKEN);
   });
 
   test('apns-priority header is set to 10', () => {
     const req = createLiveActivityRequest();
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.headers['apns-priority']).toBe('10');
   });
 
@@ -627,7 +627,7 @@ describe('live-activity createPayload via FCM', () => {
         data: { event: 'update', tag: 'laundry-001', silent: true },
       },
     });
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.headers['apns-priority']).toBe('5');
   });
 
@@ -642,14 +642,14 @@ describe('live-activity createPayload via FCM', () => {
           data: { event, tag: 'laundry-001', silent: true },
         },
       });
-      const { payload } = legacy.createPayload(req);
+      const { payload } = ios.createPayload(req);
       expect(payload.apns.headers['apns-priority']).toBe('10');
     }
   });
 
   test('no apns-push-type or apns-topic headers (FCM sets them)', () => {
     const req = createLiveActivityRequest();
-    const { payload } = legacy.createPayload(req);
+    const { payload } = ios.createPayload(req);
     expect(payload.apns.headers['apns-push-type']).toBeUndefined();
     expect(payload.apns.headers['apns-topic']).toBeUndefined();
   });
@@ -657,7 +657,7 @@ describe('live-activity createPayload via FCM', () => {
   test('all live activity events update rate limits', () => {
     for (const event of ['start', 'update', 'end']) {
       const req = createLiveActivityRequest({ data: { event, activity_id: 'test-001' } });
-      const result = legacy.createPayload(req);
+      const result = ios.createPayload(req);
       expect(result.updateRateLimits).toBe(true);
     }
   });
@@ -677,7 +677,7 @@ describe('handleRequest with Live Activity payload', () => {
 
   test('sends Live Activity via FCM and returns 201', async () => {
     const req = createLiveActivityRequest();
-    await handleRequest(req, res, legacy.createPayload);
+    await handleRequest(req, res, ios.createPayload);
 
     expect(mockMessaging.send).toHaveBeenCalledTimes(1);
     const sentPayload = mockMessaging.send.mock.calls[0][0];
@@ -695,7 +695,7 @@ describe('handleRequest with Live Activity payload', () => {
 
   test('updates rate limits for end events', async () => {
     const req = createLiveActivityRequest({ data: { event: 'end', activity_id: 'test-001' } });
-    await handleRequest(req, res, legacy.createPayload);
+    await handleRequest(req, res, ios.createPayload);
 
     expect(mockMessaging.send).toHaveBeenCalledTimes(1);
     assertResponse.expectSuccessResponse(res);
