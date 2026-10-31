@@ -5,9 +5,6 @@ const { getMessaging } = require('firebase-admin/messaging');
 const { FirestoreRateLimiter, ValkeyRateLimiter } = require('./rate-limiter');
 
 const MAX_NOTIFICATIONS_PER_DAY = parseInt(process.env.MAX_NOTIFICATIONS_PER_DAY || '500');
-const REGION = (process.env.REGION || 'us-central1').toLowerCase();
-
-const usingCloudFunctions = process.env.FUNCTION_TARGET !== undefined;
 
 const messaging = getMessaging();
 const logging = new Logging();
@@ -250,18 +247,13 @@ function reportError(err, step, req, notificationObj) {
     labels,
   };
 
-  if (usingCloudFunctions) {
-    metadata.resource.type = 'cloud_function';
-    metadata.resource.labels = { function_name: process.env.FUNCTION_TARGET, region: REGION };
-  }
-
   // https://cloud.google.com/error-reporting/reference/rest/v1beta1/ErrorEvent
   const errorEvent = {
     message: err.stack,
     serviceContext: {
-      service: usingCloudFunctions ? process.env.FUNCTION_TARGET : 'mobile-push',
-      version: usingCloudFunctions ? process.env.K_REVISION : '1.0.0',
-      resourceType: usingCloudFunctions ? 'cloud_function' : 'cloud_run',
+      service: 'mobile-push',
+      version: '1.0.0',
+      resourceType: 'cloud_run',
     },
     context: {
       httpRequest: {
