@@ -14,19 +14,6 @@ const setupFirebaseMocks = () => {
     runTransaction: jest.fn(),
   };
 
-  const mockFunctions = {
-    config: jest.fn(() => ({})),
-    logger: {
-      info: jest.fn(),
-      warn: jest.fn(),
-    },
-    region: jest.fn().mockReturnThis(),
-    runWith: jest.fn().mockReturnThis(),
-    https: {
-      onRequest: jest.fn(),
-    },
-  };
-
   const mockLogging = {
     log: jest.fn(() => ({
       write: jest.fn((_, callback) => callback()),
@@ -39,7 +26,6 @@ const setupFirebaseMocks = () => {
   };
 
   // Set up Jest mocks
-  jest.mock('firebase-functions/v1', () => mockFunctions);
   jest.mock('@google-cloud/logging', () => ({
     Logging: jest.fn(() => mockLogging),
   }));
@@ -57,7 +43,6 @@ const setupFirebaseMocks = () => {
   return {
     mockMessaging,
     mockFirestore,
-    mockFunctions,
     mockLogging,
     mockTimestamp,
   };

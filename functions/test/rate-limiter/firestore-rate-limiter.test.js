@@ -34,12 +34,6 @@ jest.mock('firebase-admin/firestore', () => ({
   Timestamp: mockTimestamp,
 }));
 
-jest.mock('firebase-functions/v1', () => ({
-  logger: {
-    info: jest.fn(),
-  },
-}));
-
 const FirestoreRateLimiter = require('../../rate-limiter/firestore-rate-limiter');
 
 describe('FirestoreRateLimiter', () => {
@@ -223,18 +217,6 @@ describe('FirestoreRateLimiter', () => {
 
       const status = await rateLimiter2.checkRateLimit(testToken);
       assertRateLimits.expectRateLimitCounts(status.rateLimits, { successful: 1 });
-    });
-  });
-
-  describe('Debug mode', () => {
-    test('should not log in debug mode (removed debug logging)', async () => {
-      const functions = require('firebase-functions/v1');
-      const rateLimiter = new FirestoreRateLimiter(maxNotificationsPerDay, true);
-
-      await rateLimiter.recordAttempt(testToken);
-      await rateLimiter.recordSuccess(testToken);
-
-      expect(functions.logger.info).not.toHaveBeenCalled();
     });
   });
 

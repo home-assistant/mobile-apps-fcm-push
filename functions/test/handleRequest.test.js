@@ -27,19 +27,6 @@ const mockFirestore = {
   runTransaction: jest.fn(),
 };
 
-const mockFunctions = {
-  config: jest.fn(() => ({})),
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-  },
-  region: jest.fn().mockReturnThis(),
-  runWith: jest.fn().mockReturnThis(),
-  https: {
-    onRequest: jest.fn(),
-  },
-};
-
 const mockLogging = {
   log: jest.fn(() => ({
     write: jest.fn((entry, callback) => callback()),
@@ -47,7 +34,6 @@ const mockLogging = {
   })),
 };
 
-jest.mock('firebase-functions/v1', () => mockFunctions);
 jest.mock('@google-cloud/logging', () => ({
   Logging: jest.fn(() => mockLogging),
 }));
@@ -64,7 +50,7 @@ jest.mock('firebase-admin/messaging', () => ({
   getMessaging: jest.fn(() => mockMessaging),
 }));
 
-const indexModule = require('../index.js');
+const handlersModule = require('../handlers.js');
 
 describe('handleRequest', () => {
   let req, res, payloadHandler, docRef, docSnapshot;
@@ -122,7 +108,7 @@ describe('handleRequest', () => {
   });
 
   test('should handle successful notification send and create new doc', async () => {
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await handlersModule.handleRequest(req, res, payloadHandler);
 
     expect(payloadHandler).toHaveBeenCalledWith(req);
     assertMessaging.expectTokenInPayload(mockMessaging, 'test:token123');
@@ -163,7 +149,7 @@ describe('handleRequest', () => {
       }),
     );
 
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await handlersModule.handleRequest(req, res, payloadHandler);
 
     // Verify Firestore operations: recordAttempt updates, recordSuccess updates
     expect(docRef.update).toHaveBeenCalledTimes(2);
@@ -178,7 +164,7 @@ describe('handleRequest', () => {
   test('should handle notification send failure and update error count', async () => {
     mockMessaging.send.mockRejectedValue(new Error('FCM send failed'));
 
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await handlersModule.handleRequest(req, res, payloadHandler);
 
     assertFirestoreOps.expectDocCreated(docRef, {
       attemptsCount: 1,
@@ -210,7 +196,7 @@ describe('handleRequest', () => {
       }),
     );
 
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await handlersModule.handleRequest(req, res, payloadHandler);
 
     assertRateLimitedFlow({ mockMessaging, mockRes: res }, 'test:token123');
 
@@ -225,7 +211,7 @@ describe('handleRequest', () => {
       payload: { notification: { body: 'Critical message' } },
     });
 
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await handlersModule.handleRequest(req, res, payloadHandler);
 
     assertMessaging.expectMessageSent(mockMessaging);
     assertFirestoreOps.expectNoFirestoreOps(docRef);
@@ -239,7 +225,7 @@ describe('handleRequest', () => {
       body: { push_token: 'invalid-token-without-colon' },
     });
 
-    await indexModule.handleRequest(testReq, res, payloadHandler);
+    await handlersModule.handleRequest(testReq, res, payloadHandler);
 
     assertResponse.expectForbiddenResponse(res, 'That is not a valid FCM token');
     assertMessaging.expectNoMessageSent(mockMessaging);
@@ -250,7 +236,7 @@ describe('handleRequest', () => {
     const testReq = createMockRequest();
     delete testReq.body.push_token;
 
-    await indexModule.handleRequest(testReq, res, payloadHandler);
+    await handlersModule.handleRequest(testReq, res, payloadHandler);
 
     assertResponse.expectForbiddenResponse(res, 'You did not send a token!');
     assertMessaging.expectNoMessageSent(mockMessaging);
@@ -260,7 +246,7 @@ describe('handleRequest', () => {
   test('should handle Firestore read errors', async () => {
     docRef.get.mockRejectedValue(new Error('Firestore read failed'));
 
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await handlersModule.handleRequest(req, res, payloadHandler);
 
     assertResponse.expectErrorResponse(res, 500, {
       errorType: 'InternalError',

@@ -19,19 +19,6 @@ const mockFirestore = {
   runTransaction: jest.fn(),
 };
 
-const mockFunctions = {
-  config: jest.fn(() => ({})),
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-  },
-  region: jest.fn().mockReturnThis(),
-  runWith: jest.fn().mockReturnThis(),
-  https: {
-    onRequest: jest.fn(),
-  },
-};
-
 const mockLogging = {
   log: jest.fn(() => ({
     write: jest.fn((entry, callback) => callback()),
@@ -39,7 +26,6 @@ const mockLogging = {
   })),
 };
 
-jest.mock('firebase-functions/v1', () => mockFunctions);
 jest.mock('@google-cloud/logging', () => ({
   Logging: jest.fn(() => mockLogging),
 }));
@@ -56,7 +42,7 @@ jest.mock('firebase-admin/messaging', () => ({
   getMessaging: jest.fn(() => mockMessaging),
 }));
 
-const indexModule = require('../index.js');
+const handlersModule = require('../handlers.js');
 
 /**
  * Create a Firebase Messaging error
@@ -130,7 +116,7 @@ describe('FCM Error Handling', () => {
     };
     mockLogging.log.mockReturnValue(mockLogInstance);
 
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await handlersModule.handleRequest(req, res, payloadHandler);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.send).toHaveBeenCalledWith({
@@ -159,7 +145,7 @@ describe('FCM Error Handling', () => {
     };
     mockLogging.log.mockReturnValue(mockLogInstance);
 
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await handlersModule.handleRequest(req, res, payloadHandler);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.send).toHaveBeenCalledWith({
@@ -183,7 +169,7 @@ describe('FCM Error Handling', () => {
     };
     mockLogging.log.mockReturnValue(mockLogInstance);
 
-    await indexModule.handleRequest(req, res, payloadHandler);
+    await handlersModule.handleRequest(req, res, payloadHandler);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.send).toHaveBeenCalledWith({
