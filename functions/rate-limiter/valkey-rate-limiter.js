@@ -19,9 +19,9 @@ const { GlideClusterClient, ClusterBatch } = require('@valkey/valkey-glide');
 
 /**
  * Converts the hgetall response array into an object.
- * Valkey returns hgetall as an array of objects
+ * Standalone hgetall returns field/value pairs; batches return key/value pairs.
  *
- * @param {Array<Record<string, string>>|any} data - The raw response from hgetall
+ * @param {unknown} data - The raw response from hgetall
  * @returns {Record<string, string>} The parsed object
  */
 function parseHgetallResponse(data) {
@@ -29,13 +29,26 @@ function parseHgetallResponse(data) {
     return /** @type {Record<string, string>} */ ({});
   }
 
-  let result = /** @type {Record<string, string>} */ ({});
+  const result = /** @type {Record<string, string>} */ ({});
   data.forEach((item) => {
-    if (item && typeof item === 'object') {
-      result = { ...result, ...item };
+    const field = item?.field ?? item?.key;
+    if (field !== undefined && item.value !== undefined) {
+      result[field] = item.value;
     }
   });
   return result;
+}
+
+/**
+ * Reads a non-negative integer counter, falling back to zero for invalid values.
+ *
+ * @param {string} value - The stored counter
+ * @returns {number} The counter value
+ */
+function parseCounter(value) {
+  if (typeof value !== 'string' || !/^[0-9]+$/.test(value)) return 0;
+  const count = Number(value);
+  return Number.isSafeInteger(count) ? count : 0;
 }
 
 /**
@@ -46,10 +59,10 @@ function parseHgetallResponse(data) {
  */
 function parseRateLimitData(data) {
   return {
-    attemptsCount: parseInt(data['attemptsCount'] || '0', 10),
-    deliveredCount: parseInt(data['deliveredCount'] || '0', 10),
-    errorCount: parseInt(data['errorCount'] || '0', 10),
-    totalCount: parseInt(data['totalCount'] || '0', 10),
+    attemptsCount: parseCounter(data['attemptsCount']),
+    deliveredCount: parseCounter(data['deliveredCount']),
+    errorCount: parseCounter(data['errorCount']),
+    totalCount: parseCounter(data['totalCount']),
   };
 }
 
