@@ -68,3 +68,6 @@ node_modules/
 
 # Local env config
 .runtimeconfig.json
+
+# Service account key used by the Docker Compose example in the README
+service-account.json
