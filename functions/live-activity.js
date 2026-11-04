@@ -77,8 +77,9 @@ function createPayload(req) {
     aps[LiveActivityApsKey.STALE_DATE] = data.stale_date;
   }
 
-  if (data.relevance_score !== undefined) {
-    aps[LiveActivityApsKey.RELEVANCE_SCORE] = data.relevance_score;
+  const relevanceScore = clampRelevanceScore(data.relevance_score);
+  if (relevanceScore !== undefined) {
+    aps[LiveActivityApsKey.RELEVANCE_SCORE] = relevanceScore;
   }
 
   if (data.alert) {
@@ -153,6 +154,21 @@ function createPayload(req) {
     updateRateLimits: true,
     payload,
   };
+}
+
+function clampRelevanceScore(value) {
+  let score;
+  if (typeof value === 'number') {
+    score = value;
+  } else if (typeof value === 'string' && value.trim() !== '') {
+    score = Number(value);
+  } else {
+    return undefined;
+  }
+  if (!Number.isFinite(score)) {
+    return undefined;
+  }
+  return Math.min(Math.max(score, 0), 1);
 }
 
 function buildAlert(body) {

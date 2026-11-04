@@ -23,7 +23,7 @@ Here are a few things you can do that will increase the likelihood of your pull 
 
 ## Resources
 
-- Our [developer documentation](https://developers.home-assistant.io/)
+- Our [contributor documentation](https://contributors.home-assistant.io/)
 - [How to Contribute to Open Source](https://opensource.guide/how-to-contribute/)
 - [How to get faster PR reviews](https://github.com/kubernetes/community/blob/master/contributors/guide/pull-requests.md#best-practices-for-faster-reviews) by Kubernetes (but skip step 0)
 - [Using Pull Requests](https://help.github.com/articles/about-pull-requests/)
