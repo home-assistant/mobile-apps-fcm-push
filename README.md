@@ -36,19 +36,19 @@ The server reads its configuration from environment variables:
 
 # Deploy your own
 
-Change the target project if needed:
+The commands below run from the repository root. Change the target project if needed:
 
 ```
 # Only once
 sed -i s/home-assistant-mobile-apps/myproject/g .firebaserc
 ```
 
-Build the container and deploy it to Cloud Run as the `mobile-push` service:
+Build the container and deploy it to Cloud Run as the `mobile-push` service. Pass the same project
+to both `gcloud` commands, as `.firebaserc` only selects the project for the Firebase CLI:
 
 ```
-cd functions
-gcloud builds submit --tag gcr.io/myproject/mobile-push
-gcloud run deploy mobile-push --image gcr.io/myproject/mobile-push --region us-central1 --allow-unauthenticated
+gcloud builds submit functions --tag gcr.io/myproject/mobile-push --project myproject
+gcloud run deploy mobile-push --image gcr.io/myproject/mobile-push --region us-central1 --allow-unauthenticated --project myproject
 ```
 
 Then deploy Firebase Hosting, which routes the API endpoints to the Cloud Run service:
