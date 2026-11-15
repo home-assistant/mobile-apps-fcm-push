@@ -113,6 +113,42 @@ const liveActivityFixtureFiles = fs
   .filter((f) => f.endsWith('.json'));
 
 describe('live-activity createPayload via FCM', () => {
+  test.each(['start', 'update'])('forwards up to three event actions on %s', (event) => {
+    const req = createLiveActivityRequest({
+      data: {
+        event,
+        actions: [
+          null,
+          { action: 'URI', title: 'Open', uri: 'https://example.com' },
+          { action: 'INPUT', title: 'Text', behavior: 'textInput' },
+          { action: 'LINK', title: 'Link', uri: '/lovelace' },
+          { action: 'REPLY', title: 'Reply' },
+          { action: 'BAD', title: ' ' },
+          { action: 'x'.repeat(65), title: 'Long ID' },
+          { action: 'LONG', title: 'é'.repeat(49) },
+          { action: 'PLAY', title: 'Play', icon: 'sfsymbols:play.fill', destructive: true },
+          { action: 'PLAY', title: 'Duplicate' },
+          { action: 'PAUSE', title: 'Pause', icon: 'x'.repeat(97) },
+          { action: 'NEXT', title: 'Next' },
+          { action: 'EXTRA', title: 'Extra' },
+        ],
+      },
+    });
+    const { payload } = ios.createPayload(req);
+    expect(payload.apns.payload.aps['content-state'].actions).toEqual([
+      { action: 'PLAY', title: 'Play', icon: 'sfsymbols:play.fill' },
+      { action: 'PAUSE', title: 'Pause' },
+      { action: 'NEXT', title: 'Next' },
+    ]);
+  });
+
+  test('omits actions when the supplied list is empty or malformed', () => {
+    for (const actions of [[], { action: 'PLAY', title: 'Play' }]) {
+      const { payload } = ios.createPayload(createLiveActivityRequest({ data: { actions } }));
+      expect(payload.apns.payload.aps['content-state'].actions).toBeUndefined();
+    }
+  });
+
   it.each(liveActivityFixtureFiles)('%s', (filename) => {
     const fixture = JSON.parse(
       fs.readFileSync(path.join(liveActivityFixturesDir, filename), 'utf8'),

@@ -230,5 +230,41 @@ function buildContentState(body, data) {
     if (cs.url !== undefined) state.url = cs.url;
   }
 
+  const actions = buildActions(data.content_state?.actions ?? data.actions);
+  if (actions.length > 0) state.actions = actions;
+
   return state;
+}
+
+// Forward event buttons only. Bound their contribution to the ActivityKit payload and omit
+// notification options that content-state does not use.
+function buildActions(input) {
+  if (!Array.isArray(input)) return [];
+
+  const seen = new Set();
+  const actions = [];
+  for (const entry of input) {
+    const { action, title, icon, uri, behavior } = entry ?? {};
+    if (
+      typeof action !== 'string' ||
+      action.trim() === '' ||
+      Buffer.byteLength(action) > 64 ||
+      action === 'URI' ||
+      action === 'REPLY' ||
+      typeof title !== 'string' ||
+      title.trim() === '' ||
+      Buffer.byteLength(title) > 96 ||
+      uri !== undefined ||
+      (typeof behavior === 'string' && behavior.toLowerCase() === 'textinput') ||
+      seen.has(action)
+    )
+      continue;
+
+    seen.add(action);
+    const button = { action, title };
+    if (typeof icon === 'string' && Buffer.byteLength(icon) <= 96) button.icon = icon;
+    actions.push(button);
+    if (actions.length === 3) break;
+  }
+  return actions;
 }
