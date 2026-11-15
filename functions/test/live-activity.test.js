@@ -167,6 +167,51 @@ describe('live-activity createPayload via FCM', () => {
     ]);
   });
 
+  describe.each(['start', 'update'])('action source on %s', (event) => {
+    const flat = [{ action: 'PLAY', title: 'Play' }];
+    const nested = [{ action: 'PAUSE', title: 'Pause' }];
+
+    test.each([
+      {
+        name: 'keeps flat buttons when nested buttons conflict',
+        flatActions: flat,
+        nestedActions: nested,
+        expected: flat,
+      },
+      {
+        name: 'keeps flat buttons when nested actions are empty',
+        flatActions: flat,
+        nestedActions: [],
+        expected: flat,
+      },
+      {
+        name: 'omits buttons when flat actions are explicitly empty',
+        flatActions: [],
+        nestedActions: nested,
+        expected: undefined,
+      },
+      {
+        name: 'omits buttons when only nested actions are supplied',
+        flatActions: undefined,
+        nestedActions: nested,
+        expected: undefined,
+      },
+    ])('$name', ({ flatActions, nestedActions, expected }) => {
+      const { payload } = ios.createPayload(
+        createLiveActivityRequest({
+          data: {
+            event,
+            actions: flatActions,
+            content_state: { message: 'Nested message', actions: nestedActions },
+          },
+        }),
+      );
+      const contentState = payload.apns.payload.aps['content-state'];
+      expect(contentState.message).toBe('Nested message');
+      expect(contentState.actions).toEqual(expected);
+    });
+  });
+
   test('keeps the first buttons that fit in an APNs payload', () => {
     const message = 'x'.repeat(3900);
     const { payload } = ios.createPayload(

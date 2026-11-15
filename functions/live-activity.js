@@ -104,7 +104,8 @@ function createPayload(req) {
 
   // An ended activity can stay visible until its dismissal date.
   if (event === LiveActivityEvent.START || event === LiveActivityEvent.UPDATE) {
-    const actions = buildActions(data.content_state?.actions ?? data.actions);
+    // Local Push reads the notification's flat actions list.
+    const actions = buildActions(data.actions);
     if (actions.length > 0) {
       contentState.actions = actions;
       // Preserve the rest of the payload by dropping trailing buttons first.
