@@ -113,6 +113,152 @@ const liveActivityFixtureFiles = fs
   .filter((f) => f.endsWith('.json'));
 
 describe('live-activity createPayload via FCM', () => {
+  test('omits buttons from final content even when dismissal is delayed', () => {
+    const dismissalDate = Math.floor(Date.now() / 1000) + 300;
+    const actions = [{ action: 'PLAY', title: 'Play' }];
+    const { payload } = ios.createPayload(
+      createLiveActivityRequest({
+        data: {
+          event: 'end',
+          dismissal_date: dismissalDate,
+          actions,
+          content_state: { message: 'Playback ended', actions },
+        },
+      }),
+    );
+
+    expect(payload.apns.payload.aps['dismissal-date']).toBe(dismissalDate);
+    expect(payload.apns.payload.aps['content-state']).toMatchObject({ message: 'Playback ended' });
+    expect(payload.apns.payload.aps['content-state'].actions).toBeUndefined();
+  });
+
+  test.each(['start', 'update'])('forwards up to three event actions on %s', (event) => {
+    const req = createLiveActivityRequest({
+      data: {
+        event,
+        actions: [
+          null,
+          { action: 'URI', title: 'Open', uri: 'https://example.com' },
+          { action: 'INPUT', title: 'Text', behavior: 'textInput' },
+          { action: 'LINK', title: 'Link', uri: '/lovelace' },
+          { action: 'REPLY', title: 'Reply' },
+          { action: 'BAD', title: ' ' },
+          { action: 'x'.repeat(65), title: 'Long ID' },
+          { action: 'LONG', title: 'é'.repeat(49) },
+          {
+            action: 'PLAY',
+            title: 'Play',
+            icon: 'sfsymbols:play.fill',
+            show_title: false,
+            destructive: true,
+          },
+          { action: 'PLAY', title: 'Duplicate' },
+          { action: 'PAUSE', title: 'Pause', icon: 'x'.repeat(97), show_title: 'false' },
+          { action: 'NEXT', title: 'Next' },
+          { action: 'EXTRA', title: 'Extra' },
+        ],
+      },
+    });
+    const { payload } = ios.createPayload(req);
+    expect(payload.apns.payload.aps['content-state'].actions).toEqual([
+      { action: 'PLAY', title: 'Play', icon: 'sfsymbols:play.fill', show_title: false },
+      { action: 'PAUSE', title: 'Pause' },
+      { action: 'NEXT', title: 'Next' },
+    ]);
+  });
+
+  describe.each(['start', 'update'])('action source on %s', (event) => {
+    const flat = [{ action: 'PLAY', title: 'Play' }];
+    const nested = [{ action: 'PAUSE', title: 'Pause' }];
+
+    test.each([
+      {
+        name: 'keeps flat buttons when nested buttons conflict',
+        flatActions: flat,
+        nestedActions: nested,
+        expected: flat,
+      },
+      {
+        name: 'keeps flat buttons when nested actions are empty',
+        flatActions: flat,
+        nestedActions: [],
+        expected: flat,
+      },
+      {
+        name: 'omits buttons when flat actions are explicitly empty',
+        flatActions: [],
+        nestedActions: nested,
+        expected: undefined,
+      },
+      {
+        name: 'omits buttons when only nested actions are supplied',
+        flatActions: undefined,
+        nestedActions: nested,
+        expected: undefined,
+      },
+    ])('$name', ({ flatActions, nestedActions, expected }) => {
+      const { payload } = ios.createPayload(
+        createLiveActivityRequest({
+          data: {
+            event,
+            actions: flatActions,
+            content_state: { message: 'Nested message', actions: nestedActions },
+          },
+        }),
+      );
+      const contentState = payload.apns.payload.aps['content-state'];
+      expect(contentState.message).toBe('Nested message');
+      expect(contentState.actions).toEqual(expected);
+    });
+  });
+
+  test('keeps the first buttons that fit in an APNs payload', () => {
+    const message = 'x'.repeat(3900);
+    const { payload } = ios.createPayload(
+      createLiveActivityRequest({
+        message,
+        data: {
+          event: 'update',
+          silent: true,
+          actions: [
+            { action: 'PLAY', title: 'Play' },
+            { action: 'NEXT', title: 'x'.repeat(96) },
+          ],
+        },
+      }),
+    );
+    expect(payload.apns.payload.aps['content-state']).toMatchObject({
+      message,
+      actions: [{ action: 'PLAY', title: 'Play' }],
+    });
+    expect(Buffer.byteLength(JSON.stringify(payload.apns.payload))).toBeLessThanOrEqual(4096);
+  });
+
+  test('uses the same canonical identifier comparison as Swift', () => {
+    const { payload } = ios.createPayload(
+      createLiveActivityRequest({
+        data: {
+          actions: [
+            { action: 'café', title: 'First' },
+            { action: 'cafe\u0301', title: 'Duplicate' },
+            { action: 'NEXT', title: 'Next' },
+          ],
+        },
+      }),
+    );
+    expect(payload.apns.payload.aps['content-state'].actions.map(({ action }) => action)).toEqual([
+      'café',
+      'NEXT',
+    ]);
+  });
+
+  test('omits actions when the supplied list is empty or malformed', () => {
+    for (const actions of [[], { action: 'PLAY', title: 'Play' }]) {
+      const { payload } = ios.createPayload(createLiveActivityRequest({ data: { actions } }));
+      expect(payload.apns.payload.aps['content-state'].actions).toBeUndefined();
+    }
+  });
+
   it.each(liveActivityFixtureFiles)('%s', (filename) => {
     const fixture = JSON.parse(
       fs.readFileSync(path.join(liveActivityFixturesDir, filename), 'utf8'),

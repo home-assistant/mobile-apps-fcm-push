@@ -1,6 +1,7 @@
 'use strict';
 
 const CLEAR_NOTIFICATION = 'clear_notification';
+const APNS_MAX_PAYLOAD_BYTES = 4096;
 const LiveActivityEvent = Object.freeze({
   START: 'start',
   UPDATE: 'update',
@@ -99,6 +100,23 @@ function createPayload(req) {
     }
   } else if (event === LiveActivityEvent.END) {
     aps.alert = buildAlert(req.body);
+  }
+
+  // An ended activity can stay visible until its dismissal date.
+  if (event === LiveActivityEvent.START || event === LiveActivityEvent.UPDATE) {
+    // Local Push reads the notification's flat actions list.
+    const actions = buildActions(data.actions);
+    if (actions.length > 0) {
+      contentState.actions = actions;
+      // Preserve the rest of the payload by dropping trailing buttons first.
+      while (
+        actions.length > 0 &&
+        Buffer.byteLength(JSON.stringify({ aps })) > APNS_MAX_PAYLOAD_BYTES
+      ) {
+        actions.pop();
+      }
+      if (actions.length === 0) delete contentState.actions;
+    }
   }
 
   if (process.env.DEBUG === 'true') {
@@ -231,4 +249,38 @@ function buildContentState(body, data) {
   }
 
   return state;
+}
+
+// Forward event buttons only. Bound their contribution to the ActivityKit payload and omit
+// notification options that content-state does not use.
+function buildActions(input) {
+  if (!Array.isArray(input)) return [];
+
+  const seen = new Set();
+  const actions = [];
+  for (const entry of input) {
+    const { action, title, icon, show_title, uri, behavior } = entry ?? {};
+    if (
+      typeof action !== 'string' ||
+      action.trim() === '' ||
+      Buffer.byteLength(action) > 64 ||
+      action === 'URI' ||
+      action === 'REPLY' ||
+      typeof title !== 'string' ||
+      title.trim() === '' ||
+      Buffer.byteLength(title) > 96 ||
+      uri !== undefined ||
+      (typeof behavior === 'string' && behavior.toLowerCase() === 'textinput') ||
+      seen.has(action.normalize('NFC'))
+    )
+      continue;
+
+    seen.add(action.normalize('NFC'));
+    const button = { action, title };
+    if (typeof icon === 'string' && Buffer.byteLength(icon) <= 96) button.icon = icon;
+    if (typeof show_title === 'boolean') button.show_title = show_title;
+    actions.push(button);
+    if (actions.length === 3) break;
+  }
+  return actions;
 }
