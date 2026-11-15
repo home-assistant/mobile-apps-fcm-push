@@ -126,9 +126,15 @@ describe('live-activity createPayload via FCM', () => {
           { action: 'BAD', title: ' ' },
           { action: 'x'.repeat(65), title: 'Long ID' },
           { action: 'LONG', title: 'é'.repeat(49) },
-          { action: 'PLAY', title: 'Play', icon: 'sfsymbols:play.fill', destructive: true },
+          {
+            action: 'PLAY',
+            title: 'Play',
+            icon: 'sfsymbols:play.fill',
+            show_title: false,
+            destructive: true,
+          },
           { action: 'PLAY', title: 'Duplicate' },
-          { action: 'PAUSE', title: 'Pause', icon: 'x'.repeat(97) },
+          { action: 'PAUSE', title: 'Pause', icon: 'x'.repeat(97), show_title: 'false' },
           { action: 'NEXT', title: 'Next' },
           { action: 'EXTRA', title: 'Extra' },
         ],
@@ -136,7 +142,7 @@ describe('live-activity createPayload via FCM', () => {
     });
     const { payload } = ios.createPayload(req);
     expect(payload.apns.payload.aps['content-state'].actions).toEqual([
-      { action: 'PLAY', title: 'Play', icon: 'sfsymbols:play.fill' },
+      { action: 'PLAY', title: 'Play', icon: 'sfsymbols:play.fill', show_title: false },
       { action: 'PAUSE', title: 'Pause' },
       { action: 'NEXT', title: 'Next' },
     ]);

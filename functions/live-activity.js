@@ -244,7 +244,7 @@ function buildActions(input) {
   const seen = new Set();
   const actions = [];
   for (const entry of input) {
-    const { action, title, icon, uri, behavior } = entry ?? {};
+    const { action, title, icon, show_title, uri, behavior } = entry ?? {};
     if (
       typeof action !== 'string' ||
       action.trim() === '' ||
@@ -263,6 +263,7 @@ function buildActions(input) {
     seen.add(action);
     const button = { action, title };
     if (typeof icon === 'string' && Buffer.byteLength(icon) <= 96) button.icon = icon;
+    if (typeof show_title === 'boolean') button.show_title = show_title;
     actions.push(button);
     if (actions.length === 3) break;
   }
