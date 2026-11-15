@@ -102,15 +102,21 @@ function createPayload(req) {
     aps.alert = buildAlert(req.body);
   }
 
-  // A push already close to the APNs limit can still update its content. Leave
-  // out the lowest-priority buttons first, preserving the rest of the payload.
-  while (
-    contentState.actions?.length > 0 &&
-    Buffer.byteLength(JSON.stringify({ aps })) > APNS_MAX_PAYLOAD_BYTES
-  ) {
-    contentState.actions.pop();
+  // An ended activity can stay visible until its dismissal date.
+  if (event === LiveActivityEvent.START || event === LiveActivityEvent.UPDATE) {
+    const actions = buildActions(data.content_state?.actions ?? data.actions);
+    if (actions.length > 0) {
+      contentState.actions = actions;
+      // Preserve the rest of the payload by dropping trailing buttons first.
+      while (
+        actions.length > 0 &&
+        Buffer.byteLength(JSON.stringify({ aps })) > APNS_MAX_PAYLOAD_BYTES
+      ) {
+        actions.pop();
+      }
+      if (actions.length === 0) delete contentState.actions;
+    }
   }
-  if (contentState.actions?.length === 0) delete contentState.actions;
 
   if (process.env.DEBUG === 'true') {
     console.info(
@@ -240,9 +246,6 @@ function buildContentState(body, data) {
       state.progress_bar_direction = cs.progress_bar_direction;
     if (cs.url !== undefined) state.url = cs.url;
   }
-
-  const actions = buildActions(data.content_state?.actions ?? data.actions);
-  if (actions.length > 0) state.actions = actions;
 
   return state;
 }

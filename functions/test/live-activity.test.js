@@ -113,6 +113,25 @@ const liveActivityFixtureFiles = fs
   .filter((f) => f.endsWith('.json'));
 
 describe('live-activity createPayload via FCM', () => {
+  test('omits buttons from final content even when dismissal is delayed', () => {
+    const dismissalDate = Math.floor(Date.now() / 1000) + 300;
+    const actions = [{ action: 'PLAY', title: 'Play' }];
+    const { payload } = ios.createPayload(
+      createLiveActivityRequest({
+        data: {
+          event: 'end',
+          dismissal_date: dismissalDate,
+          actions,
+          content_state: { message: 'Playback ended', actions },
+        },
+      }),
+    );
+
+    expect(payload.apns.payload.aps['dismissal-date']).toBe(dismissalDate);
+    expect(payload.apns.payload.aps['content-state']).toMatchObject({ message: 'Playback ended' });
+    expect(payload.apns.payload.aps['content-state'].actions).toBeUndefined();
+  });
+
   test.each(['start', 'update'])('forwards up to three event actions on %s', (event) => {
     const req = createLiveActivityRequest({
       data: {
