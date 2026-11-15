@@ -1,6 +1,7 @@
 'use strict';
 
 const CLEAR_NOTIFICATION = 'clear_notification';
+const APNS_MAX_PAYLOAD_BYTES = 4096;
 const LiveActivityEvent = Object.freeze({
   START: 'start',
   UPDATE: 'update',
@@ -100,6 +101,16 @@ function createPayload(req) {
   } else if (event === LiveActivityEvent.END) {
     aps.alert = buildAlert(req.body);
   }
+
+  // A push already close to the APNs limit can still update its content. Leave
+  // out the lowest-priority buttons first, preserving the rest of the payload.
+  while (
+    contentState.actions?.length > 0 &&
+    Buffer.byteLength(JSON.stringify({ aps })) > APNS_MAX_PAYLOAD_BYTES
+  ) {
+    contentState.actions.pop();
+  }
+  if (contentState.actions?.length === 0) delete contentState.actions;
 
   if (process.env.DEBUG === 'true') {
     console.info(
@@ -256,11 +267,11 @@ function buildActions(input) {
       Buffer.byteLength(title) > 96 ||
       uri !== undefined ||
       (typeof behavior === 'string' && behavior.toLowerCase() === 'textinput') ||
-      seen.has(action)
+      seen.has(action.normalize('NFC'))
     )
       continue;
 
-    seen.add(action);
+    seen.add(action.normalize('NFC'));
     const button = { action, title };
     if (typeof icon === 'string' && Buffer.byteLength(icon) <= 96) button.icon = icon;
     if (typeof show_title === 'boolean') button.show_title = show_title;

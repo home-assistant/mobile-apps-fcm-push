@@ -148,6 +148,46 @@ describe('live-activity createPayload via FCM', () => {
     ]);
   });
 
+  test('keeps the first buttons that fit in an APNs payload', () => {
+    const message = 'x'.repeat(3900);
+    const { payload } = ios.createPayload(
+      createLiveActivityRequest({
+        message,
+        data: {
+          event: 'update',
+          silent: true,
+          actions: [
+            { action: 'PLAY', title: 'Play' },
+            { action: 'NEXT', title: 'x'.repeat(96) },
+          ],
+        },
+      }),
+    );
+    expect(payload.apns.payload.aps['content-state']).toMatchObject({
+      message,
+      actions: [{ action: 'PLAY', title: 'Play' }],
+    });
+    expect(Buffer.byteLength(JSON.stringify(payload.apns.payload))).toBeLessThanOrEqual(4096);
+  });
+
+  test('uses the same canonical identifier comparison as Swift', () => {
+    const { payload } = ios.createPayload(
+      createLiveActivityRequest({
+        data: {
+          actions: [
+            { action: 'café', title: 'First' },
+            { action: 'cafe\u0301', title: 'Duplicate' },
+            { action: 'NEXT', title: 'Next' },
+          ],
+        },
+      }),
+    );
+    expect(payload.apns.payload.aps['content-state'].actions.map(({ action }) => action)).toEqual([
+      'café',
+      'NEXT',
+    ]);
+  });
+
   test('omits actions when the supplied list is empty or malformed', () => {
     for (const actions of [[], { action: 'PLAY', title: 'Play' }]) {
       const { payload } = ios.createPayload(createLiveActivityRequest({ data: { actions } }));
