@@ -28,8 +28,9 @@ module.exports = {
             payload.data[`action_${actionIndex}_behavior`] = action.behavior;
           }
           if (action.authenticationRequired) {
-            payload.data[`action_${actionIndex}_authenticationRequired`] =
-              action.authenticationRequired;
+            payload.data[`action_${actionIndex}_authenticationRequired`] = String(
+              action.authenticationRequired,
+            );
           }
         });
       }
@@ -49,6 +50,7 @@ module.exports = {
       const androidNotificationKeys = [
         'icon',
         'color',
+        'notification_icon_color',
         'sound',
         'tag',
         'clickAction',

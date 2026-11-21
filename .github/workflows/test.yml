@@ -13,11 +13,13 @@ jobs:
       working-directory: functions/
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v6
-    - name: Setup node
-      uses: actions/setup-node@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
-        node-version: 20
+        persist-credentials: false
+    - name: Setup node
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 24
     - name: Install dependencies
       run: npm install
       working-directory: ${{ env.working-directory }}
@@ -30,7 +32,7 @@ jobs:
     - name: Run lint
       run: npm run lint
       working-directory: ${{ env.working-directory }}
-    - uses: codecov/codecov-action@v6
+    - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
       name: "Upload Code Coverage"
       with:
         files:  ${{ env.working-directory }}/coverage/lcov.info

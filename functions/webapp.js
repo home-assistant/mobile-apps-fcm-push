@@ -11,7 +11,7 @@ const fastify = require('fastify')({ logger: loggerConfig, trustProxy: true });
 const { handleRequest, handleCheckRateLimits } = require('./handlers');
 
 const android = require('./android');
-const legacy = require('./legacy');
+const ios = require('./ios');
 
 // Cloud Functions adapter
 function createCloudFunctionsAdapter(request, reply) {
@@ -39,7 +39,7 @@ async function handleAndroidV1(request, reply) {
 
 async function handleSendPushNotification(request, reply) {
   const { req, res } = createCloudFunctionsAdapter(request, reply);
-  return handleRequest(req, res, legacy.createPayload);
+  return handleRequest(req, res, ios.createPayload);
 }
 
 async function checkRateLimits(request, reply) {

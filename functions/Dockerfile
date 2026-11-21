@@ -8,15 +8,8 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --only=production
 
-# Copy all necessary application files in one layer
-COPY \
-    webapp.js \
-    index.js \
-    android.js \
-    legacy.js \
-    handlers.js \
-    fastify-logger.js \
-    ./
+# Copy all application JS files in one layer
+COPY *.js ./
 
 COPY rate-limiter/ ./rate-limiter/
 
