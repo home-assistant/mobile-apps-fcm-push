@@ -64,7 +64,13 @@ async function handleRequest(req, res, payloadHandler) {
     return res.status(403).send({ errorMessage: 'That is not a valid FCM token' });
   }
 
-  const { updateRateLimits, payload } = payloadHandler(req);
+  let updateRateLimits;
+  let payload;
+  try {
+    ({ updateRateLimits, payload } = payloadHandler(req));
+  } catch (err) {
+    return handleError(req, res, {}, 'buildPayload', err);
+  }
 
   payload.token = token;
 

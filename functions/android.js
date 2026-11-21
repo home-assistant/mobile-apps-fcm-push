@@ -130,7 +130,13 @@ module.exports = {
           // If the value is an object, stringify it. Convert everything else to a string.
           // This is because FCM data payloads must be strings.
           if (typeof req.body.data[key] === 'object') {
-            payload.data[key] = JSON.stringify(req.body.data[key]);
+            try {
+              payload.data[key] = JSON.stringify(req.body.data[key]);
+            } catch (err) {
+              throw new Error(
+                `Unable to serialize req.body.data.${key} for Android payload`,
+              );
+            }
           } else {
             payload.data[key] = String(req.body.data[key]);
           }
