@@ -133,9 +133,7 @@ module.exports = {
             try {
               payload.data[key] = JSON.stringify(req.body.data[key]);
             } catch (err) {
-              throw new Error(
-                `Unable to serialize req.body.data.${key} for Android payload`,
-              );
+              throw new Error(`Unable to serialize req.body.data.${key} for Android payload`);
             }
           } else {
             payload.data[key] = String(req.body.data[key]);
