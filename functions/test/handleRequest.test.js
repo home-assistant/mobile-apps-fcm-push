@@ -280,7 +280,7 @@ describe('handleRequest', () => {
     await indexModule.handleRequest(req, res, payloadHandler);
 
     const response = assertResponse.expectErrorResponse(res, 500, {
-      errorType: 'InvalidPayloadData',
+      errorType: 'InternalError',
       errorStep: 'buildPayload',
       message: 'Unable to serialize req.body.data.progress_segments for Android payload',
     });
