@@ -212,6 +212,30 @@ describe('live-activity createPayload via FCM', () => {
     });
   });
 
+  test.each(['start', 'update'])(
+    'forwards only explicit authentication opt-outs on %s',
+    (event) => {
+      const { payload } = ios.createPayload(
+        createLiveActivityRequest({
+          data: {
+            event,
+            actions: [
+              { action: 'PAUSE', title: 'Pause', authentication_required: false },
+              { action: 'NEXT', title: 'Next', authentication_required: 'false' },
+              { action: 'STOP', title: 'Stop', authentication_required: true },
+            ],
+          },
+        }),
+      );
+
+      expect(payload.apns.payload.aps['content-state'].actions).toEqual([
+        { action: 'PAUSE', title: 'Pause', authentication_required: false },
+        { action: 'NEXT', title: 'Next' },
+        { action: 'STOP', title: 'Stop' },
+      ]);
+    },
+  );
+
   test('keeps the first buttons that fit in an APNs payload', () => {
     const message = 'x'.repeat(3900);
     const { payload } = ios.createPayload(

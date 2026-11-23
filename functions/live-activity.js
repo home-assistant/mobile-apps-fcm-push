@@ -259,7 +259,7 @@ function buildActions(input) {
   const seen = new Set();
   const actions = [];
   for (const entry of input) {
-    const { action, title, icon, show_title, uri, behavior } = entry ?? {};
+    const { action, title, icon, show_title, authentication_required, uri, behavior } = entry ?? {};
     if (
       typeof action !== 'string' ||
       action.trim() === '' ||
@@ -279,6 +279,7 @@ function buildActions(input) {
     const button = { action, title };
     if (typeof icon === 'string' && Buffer.byteLength(icon) <= 96) button.icon = icon;
     if (typeof show_title === 'boolean') button.show_title = show_title;
+    if (authentication_required === false) button.authentication_required = false;
     actions.push(button);
     if (actions.length === 3) break;
   }
