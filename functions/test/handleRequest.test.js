@@ -267,4 +267,25 @@ describe('handleRequest', () => {
       errorStep: 'getRateLimitDoc',
     });
   });
+
+  test('should return 500 when payload construction cannot serialize data', async () => {
+    const serializationError = new Error(
+      'Unable to serialize req.body.data.progress_segments for Android payload',
+    );
+    serializationError.code = 'messaging/data-serialization-failed';
+    payloadHandler.mockImplementation(() => {
+      throw serializationError;
+    });
+
+    await indexModule.handleRequest(req, res, payloadHandler);
+
+    const response = assertResponse.expectErrorResponse(res, 500, {
+      errorType: 'InternalError',
+      errorStep: 'buildPayload',
+      message: 'Unable to serialize req.body.data.progress_segments for Android payload',
+    });
+    expect(response.field).toBeUndefined();
+    assertMessaging.expectNoMessageSent(mockMessaging);
+    assertFirestoreOps.expectNoFirestoreOps(docRef);
+  });
 });
